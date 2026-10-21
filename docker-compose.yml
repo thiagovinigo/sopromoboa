@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=sqlite:///./sopromoboa.db
+      - ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python scraper_worker.py --loop
+    volumes:
+      - ./backend:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=sqlite:///./sopromoboa.db
+    depends_on:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
