@@ -2,7 +2,21 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, TrendingDown, Star, Zap, Ticket, Bell, Check, Flame } from "lucide-react";
+import {
+  ExternalLink,
+  TrendingDown,
+  Star,
+  Zap,
+  Ticket,
+  Bell,
+  Flame,
+  Smartphone,
+  Laptop,
+  Gamepad2,
+  Tv,
+  ShoppingBag,
+  Sparkles
+} from "lucide-react";
 import { Deal } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
@@ -14,10 +28,16 @@ interface DealCardProps {
   onFavoriteChange?: (dealId: string, isFav: boolean) => void;
 }
 
-export default function DealCard({ deal, isFavorited: initialFav = false, onOpenAlertModal, onFavoriteChange }: DealCardProps) {
+export default function DealCard({
+  deal,
+  isFavorited: initialFav = false,
+  onOpenAlertModal,
+  onFavoriteChange,
+}: DealCardProps) {
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [isFav, setIsFav] = useState(initialFav);
   const [favLoading, setFavLoading] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   React.useEffect(() => {
     setIsFav(initialFav);
@@ -55,7 +75,7 @@ export default function DealCard({ deal, isFavorited: initialFav = false, onOpen
   };
 
   const getStoreBadgeColor = (source: string) => {
-    const s = source.toLowerCase();
+    const s = (source || "").toLowerCase();
     if (s.includes("amazon")) return "bg-amber-500/10 text-amber-400 border-amber-500/30";
     if (s.includes("mercado")) return "bg-yellow-500/10 text-yellow-400 border-yellow-500/30";
     if (s.includes("magalu") || s.includes("magazine")) return "bg-blue-500/10 text-blue-400 border-blue-500/30";
@@ -63,35 +83,46 @@ export default function DealCard({ deal, isFavorited: initialFav = false, onOpen
     return "bg-gray-800 text-gray-300 border-gray-700";
   };
 
+  const getCategoryIcon = (category: string) => {
+    const c = (category || "").toLowerCase();
+    if (c.includes("smart") || c.includes("celular")) return Smartphone;
+    if (c.includes("info") || c.includes("pc") || c.includes("note")) return Laptop;
+    if (c.includes("game") || c.includes("consol")) return Gamepad2;
+    if (c.includes("eletro") || c.includes("tv") || c.includes("audio")) return Tv;
+    return ShoppingBag;
+  };
+
   const formatBRL = (val: number) => {
     return val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
+  const CategoryIconComponent = getCategoryIcon(deal.category);
+
   return (
     <div className="glass-card rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 group relative">
-      {/* Badges superiores */}
-      <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1.5 items-center">
+      {/* Badges superiores - isolados com pointer-events-none e limite de largura */}
+      <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap gap-1.5 items-center pointer-events-none max-w-[70%]">
         {deal.discount_percent > 0 && (
-          <span className="px-2.5 py-1 text-xs font-black text-white flame-gradient rounded-lg shadow-md shadow-rose-600/30 flex items-center gap-1">
+          <span className="px-2 py-0.5 text-xs font-black text-white flame-gradient rounded-lg shadow-md shadow-rose-600/30 flex items-center gap-1">
             <Zap className="w-3 h-3 fill-white" />
             -{deal.discount_percent}%
           </span>
         )}
         {deal.is_all_time_low && (
-          <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 rounded-md flex items-center gap-1">
+          <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 rounded-md flex items-center gap-1 shadow-sm">
             <Flame className="w-3 h-3 text-emerald-400 fill-emerald-400" />
             Menor Preço
           </span>
         )}
         {deal.is_affiliate_deal === 1 && (
-          <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-500/20 border border-purple-500/40 rounded-md">
-            ★ Destaque
+          <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-950/90 backdrop-blur-md border border-purple-500/40 rounded-md shadow-sm flex items-center gap-1">
+            <Sparkles className="w-2.5 h-2.5 text-purple-400" /> Destaque
           </span>
         )}
       </div>
 
       {/* Ações superiores direitas: Favoritar e Alerta */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+      <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
         <button
           onClick={handleToggleFavorite}
           title={isFav ? "Remover dos favoritos" : "Salvar nos favoritos"}
@@ -124,19 +155,30 @@ export default function DealCard({ deal, isFavorited: initialFav = false, onOpen
         </button>
       </div>
 
-      {/* Imagem do Produto */}
-      <Link href={`/produto/${deal.id}`} className="block relative pt-[75%] bg-gray-900/50 overflow-hidden">
-        {deal.image_url ? (
+      {/* Imagem do Produto com Fallback Blindado (sem texto quebrado sobreposto) */}
+      <Link
+        href={`/produto/${deal.id}`}
+        className="block relative pt-[72%] bg-gradient-to-b from-gray-900/90 to-gray-950/90 overflow-hidden"
+      >
+        {deal.image_url && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={deal.image_url}
-            alt={deal.title}
+            alt=""
+            aria-label={deal.title}
+            onError={() => setImgError(true)}
             className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-600 text-xs font-medium">
-            Sem foto
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center select-none bg-gradient-to-b from-gray-900/95 to-gray-950">
+            <div className="w-12 h-12 rounded-2xl bg-gray-800/80 border border-gray-700/60 flex items-center justify-center mb-1.5 shadow-inner group-hover:scale-110 transition-transform">
+              <CategoryIconComponent className="w-6 h-6 text-rose-500" />
+            </div>
+            <span className="text-[11px] font-black tracking-wider text-gray-300 uppercase">{deal.source}</span>
+            <span className="text-[10px] text-gray-500 font-medium line-clamp-1 max-w-[85%] mt-0.5">
+              {deal.brand || deal.category}
+            </span>
           </div>
         )}
       </Link>
@@ -144,22 +186,24 @@ export default function DealCard({ deal, isFavorited: initialFav = false, onOpen
       {/* Conteúdo */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
-          {/* Loja & Categoria */}
+          {/* Loja & Avaliação */}
           <div className="flex items-center justify-between text-xs mb-2">
             <span className={`px-2 py-0.5 rounded-md font-semibold border ${getStoreBadgeColor(deal.source)}`}>
               {deal.source}
             </span>
-            {deal.rating && (
+            {deal.rating ? (
               <span className="flex items-center gap-1 text-amber-400 font-semibold text-xs">
                 <Star className="w-3 h-3 fill-amber-400" />
                 {deal.rating} {deal.review_count > 0 && `(${deal.review_count})`}
               </span>
+            ) : (
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider">{deal.category}</span>
             )}
           </div>
 
-          {/* Título */}
+          {/* Título com altura fixa de 2 linhas para garantir alinhamento perfeito */}
           <Link href={`/produto/${deal.id}`}>
-            <h3 className="font-semibold text-sm text-gray-100 hover:text-rose-400 line-clamp-2 transition-colors mb-2 leading-snug">
+            <h3 className="font-semibold text-sm text-gray-100 hover:text-rose-400 line-clamp-2 h-10 transition-colors mb-2 leading-snug">
               {deal.title}
             </h3>
           </Link>
@@ -181,23 +225,24 @@ export default function DealCard({ deal, isFavorited: initialFav = false, onOpen
             </div>
           )}
 
-          {/* Indicador de queda de preço */}
-          {deal.previous_price && deal.previous_price > deal.price && (
-            <div className="flex items-center gap-1 text-xs text-rose-400 font-bold mb-1">
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span>Caiu de <span className="line-through text-gray-400 font-normal">{formatBRL(deal.previous_price)}</span></span>
-            </div>
-          )}
-
-          {/* Preço de lista riscado se não houver queda recente */}
-          {(!deal.previous_price || deal.previous_price <= deal.price) && deal.list_price && deal.list_price > deal.price && (
-            <div className="text-xs text-gray-400 line-through mb-1">
-              De: {formatBRL(deal.list_price)}
-            </div>
-          )}
+          {/* Linha de Queda de Preço com altura fixa para evitar desníveis */}
+          <div className="h-5 mb-1 flex items-center">
+            {deal.previous_price && deal.previous_price > deal.price ? (
+              <div className="flex items-center gap-1 text-xs text-rose-400 font-bold">
+                <TrendingDown className="w-3.5 h-3.5" />
+                <span>Caiu de <span className="line-through text-gray-400 font-normal">{formatBRL(deal.previous_price)}</span></span>
+              </div>
+            ) : deal.list_price && deal.list_price > deal.price ? (
+              <div className="text-xs text-gray-400 line-through">
+                De: {formatBRL(deal.list_price)}
+              </div>
+            ) : (
+              <span className="text-[11px] text-gray-500">Preço verificado</span>
+            )}
+          </div>
 
           {/* Preço Atual */}
-          <div className="flex items-baseline gap-2 mb-3">
+          <div className="flex items-baseline gap-2 mb-2">
             <span className="text-xl font-black text-white tracking-tight">
               {formatBRL(deal.price)}
             </span>

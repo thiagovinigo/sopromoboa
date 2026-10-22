@@ -289,20 +289,29 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
     """Redirecionamento rastreado com tag de afiliado para a loja original."""
     product = db.query(ProductModel).filter(ProductModel.id == product_id).first()
     if not product:
-        raise HTTPException(status_code=404, detail="Oferta não encontrada")
+        # Fallback gracioso para a vitrine caso o produto não exista
+        return RedirectResponse(url="http://localhost:3000/radar", status_code=307)
 
     # Incrementa contador de cliques no anúncio
     product.clicks_count = (product.clicks_count or 0) + 1
 
     # Registra o clique para métricas de conversão
-    db.add(ClickModel(
-        product_id=product_id,
-        source=product.source,
-        created_at=datetime.utcnow()
-    ))
-    db.commit()
+    try:
+        db.add(ClickModel(
+            product_id=product_id,
+            source=product.source,
+            created_at=datetime.utcnow()
+        ))
+        db.commit()
+    except Exception:
+        pass
 
     target_url = product.affiliate_url or product.url
+    if not target_url or not target_url.startswith("http"):
+        import urllib.parse
+        store_q = product.source or "oferta"
+        target_url = f"https://www.google.com/search?q={urllib.parse.quote_plus(product.title + ' ' + store_q)}"
+
     return RedirectResponse(url=target_url, status_code=307)
 
 

@@ -32,6 +32,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -115,15 +116,23 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {deal.image_url ? (
+          {deal.image_url && !imgError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={deal.image_url}
-              alt={deal.title}
+              alt=""
+              aria-label={deal.title}
+              onError={() => setImgError(true)}
               className="max-h-80 w-auto object-contain hover:scale-105 transition-transform duration-300"
             />
           ) : (
-            <div className="text-gray-500 text-sm">Imagem não disponível</div>
+            <div className="flex flex-col items-center justify-center p-8 text-center select-none">
+              <div className="w-16 h-16 rounded-2xl bg-gray-800/80 border border-gray-700/60 flex items-center justify-center mb-2 shadow-inner">
+                <Store className="w-8 h-8 text-rose-500" />
+              </div>
+              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">{deal.source}</span>
+              <span className="text-xs text-gray-400 mt-1">{deal.brand || "Só Promo Boa"}</span>
+            </div>
           )}
         </div>
 

@@ -68,7 +68,13 @@ def scrape_gatry() -> List[Dict[str, Any]]:
             else:
                 source = raw_store.title()
 
-            image_url = img_el.get("src") if img_el else ""
+            image_url = ""
+            if img_el:
+                image_url = img_el.get("src") or img_el.get("data-src") or ""
+                if image_url.startswith("//"):
+                    image_url = "https:" + image_url
+                elif image_url.startswith("/"):
+                    image_url = "https://gatry.com" + image_url
 
             item_id = f"gatry_{hashlib.md5(clean_url.encode('utf-8')).hexdigest()[:12]}"
 
