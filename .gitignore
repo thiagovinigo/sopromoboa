@@ -20,6 +20,8 @@ out/
 frontend/out/
 build/
 dist/
+.vercel/
+frontend/.vercel/
 
 # Environment files
 .env
