@@ -230,7 +230,57 @@ export async function fetchAdminStats(): Promise<AdminStats | null> {
   }
 }
 
+export interface WorkerHistoryItem {
+  timestamp: string;
+  duration_seconds: number;
+  type: string;
+  stats: {
+    inserted: number;
+    updated: number;
+    price_drops: number;
+    alerts_triggered: number;
+  };
+}
+
+export interface WorkerStatus {
+  is_running: boolean;
+  last_run: string | null;
+  last_stats: {
+    inserted: number;
+    updated: number;
+    price_drops: number;
+    alerts_triggered: number;
+  } | null;
+  history: WorkerHistoryItem[];
+  interval_minutes: number;
+  total_monitored: number;
+  total_active_drops: number;
+  active_scrapers: {
+    name: string;
+    target: string;
+    status: string;
+    interval: string;
+  }[];
+}
+
+export async function fetchWorkerStatus(): Promise<WorkerStatus | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/worker/status`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error("Erro ao carregar status do worker:", err);
+    return null;
+  }
+}
+
 export async function triggerWorker() {
   const res = await fetch(`${API_BASE}/api/worker/run`, { method: "POST" });
   return res.json();
 }
+
+export async function simulatePriceDrop() {
+  const res = await fetch(`${API_BASE}/api/worker/simulate-drop`, { method: "POST" });
+  return res.json();
+}
+

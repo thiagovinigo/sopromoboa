@@ -18,6 +18,13 @@ import {
   Settings,
   Eye,
   Zap,
+  Bot,
+  RefreshCw,
+  Flame,
+  Clock,
+  Activity,
+  CheckCircle2,
+  Play,
 } from "lucide-react";
 import {
   fetchAdminDeals,
@@ -30,15 +37,23 @@ import {
   Deal,
   AdminStats,
   AffiliateProgram,
+  WorkerStatus,
+  fetchWorkerStatus,
+  triggerWorker,
+  simulatePriceDrop,
 } from "@/lib/api";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"anuncios" | "publicar" | "gerador" | "tags" | "metricas">("anuncios");
+  const [activeTab, setActiveTab] = useState<"anuncios" | "publicar" | "gerador" | "tags" | "metricas" | "workers">("anuncios");
 
   // Dados
   const [adminDeals, setAdminDeals] = useState<Deal[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [programs, setPrograms] = useState<AffiliateProgram[]>([]);
+  const [workerStatus, setWorkerStatus] = useState<WorkerStatus | null>(null);
+  const [workerRunning, setWorkerRunning] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<{ success: boolean; message: string; deal?: any } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Formulário de Novo Anúncio
@@ -75,15 +90,57 @@ export default function AdminPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [dealsRes, statsRes, progRes] = await Promise.all([
+    const [dealsRes, statsRes, progRes, workerRes] = await Promise.all([
       fetchAdminDeals(),
       fetchAdminStats(),
       fetchAffiliates(),
+      fetchWorkerStatus(),
     ]);
     setAdminDeals(dealsRes);
     setStats(statsRes);
     setPrograms(progRes);
+    setWorkerStatus(workerRes);
+    if (workerRes) {
+      setWorkerRunning(workerRes.is_running);
+    }
     setLoading(false);
+  };
+
+  const handleTriggerWorker = async () => {
+    setWorkerRunning(true);
+    try {
+      await triggerWorker();
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts++;
+        const updated = await fetchWorkerStatus();
+        if (updated) {
+          setWorkerStatus(updated);
+          if (!updated.is_running || attempts >= 20) {
+            clearInterval(interval);
+            setWorkerRunning(false);
+            loadData();
+          }
+        }
+      }, 1500);
+    } catch (err) {
+      console.error(err);
+      setWorkerRunning(false);
+    }
+  };
+
+  const handleSimulateDrop = async () => {
+    setSimulating(true);
+    try {
+      const res = await simulatePriceDrop();
+      setSimulationResult(res);
+      loadData();
+      setTimeout(() => setSimulationResult(null), 8000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSimulating(false);
+    }
   };
 
   const handlePublishDeal = async (e: React.FormEvent) => {
@@ -268,6 +325,20 @@ export default function AdminPage() {
           }`}
         >
           <TrendingUp className="w-4 h-4" /> Métricas de Conversão
+        </button>
+
+        <button
+          onClick={() => setActiveTab("workers")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === "workers"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Bot className="w-4 h-4" /> Robôs & Workers
+          {workerStatus?.is_running && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          )}
         </button>
       </div>
 
@@ -766,6 +837,199 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-500">Os anúncios mais clicados aparecerão aqui conforme os usuários acessarem.</p>
               )}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ABA 6: ROBÔS & WORKERS (ACOMPANHAMENTO DE OFERTAS) */}
+      {activeTab === "workers" && (
+        <section className="space-y-6">
+          {/* Banner de Feedback de Simulação */}
+          {simulationResult && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-gray-900 border border-emerald-500/40 text-white flex items-center justify-between shadow-xl animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-sm block text-emerald-300">{simulationResult.message}</span>
+                  {simulationResult.deal && (
+                    <span className="text-xs text-gray-400">
+                      Preço caiu de <span className="line-through">{formatBRL(simulationResult.deal.old_price)}</span> para <strong className="text-white">{formatBRL(simulationResult.deal.new_price)}</strong> (-{simulationResult.deal.discount_percent}% OFF). Verifique na página do <a href="/radar" target="_blank" className="text-emerald-400 underline font-semibold">Radar de Quedas</a>!
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setSimulationResult(null)}
+                className="text-gray-400 hover:text-white text-xs px-2 py-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Card Principal de Status e Controle */}
+          <div className="glass-card rounded-3xl p-6 border border-gray-800 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${workerRunning ? "bg-amber-400 animate-ping" : "bg-emerald-400"}`} />
+                  <span className="text-sm font-black text-white uppercase tracking-wider">
+                    {workerRunning ? "Varredura em Execução no Servidor..." : "Robôs em Espera / Prontos"}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  O worker executa periodicamente a cada {workerStatus?.interval_minutes || 15} minutos em background thread, comparando preços, detectando quedas reais e gravando o histórico.
+                </p>
+                {workerStatus?.last_run && (
+                  <div className="text-[11px] text-gray-500 flex items-center gap-2 pt-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Última varredura concluída em: {new Date(workerStatus.last_run).toLocaleTimeString("pt-BR")}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleSimulateDrop}
+                  disabled={simulating}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 transition-all flex items-center gap-1.5 shadow-sm"
+                  title="Aplica uma oscilação de preço real em um produto para testar o Radar e os Alertas"
+                >
+                  <Flame className="w-4 h-4 text-rose-500" />
+                  {simulating ? "Simulando..." : "Simular Queda de Preço"}
+                </button>
+
+                <button
+                  onClick={handleTriggerWorker}
+                  disabled={workerRunning}
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20 disabled:opacity-60"
+                >
+                  <RefreshCw className={`w-4 h-4 ${workerRunning ? "animate-spin" : ""}`} />
+                  {workerRunning ? "Varrendo Ofertas..." : "Executar Varredura Agora"}
+                </button>
+              </div>
+            </div>
+
+            {/* Grid de Métricas de Operação */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800">
+                <span className="text-[11px] font-semibold text-gray-400 block">Total Monitorado</span>
+                <span className="text-xl font-black text-white">{workerStatus?.total_monitored || 0}</span>
+                <span className="text-[10px] text-gray-500 block">no banco de dados</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800">
+                <span className="text-[11px] font-semibold text-gray-400 block">Quedas Ativas</span>
+                <span className="text-xl font-black text-rose-400">{workerStatus?.total_active_drops || 0}</span>
+                <span className="text-[10px] text-gray-500 block">visíveis no Radar</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800">
+                <span className="text-[11px] font-semibold text-gray-400 block">Última Rodada</span>
+                <span className="text-xl font-black text-emerald-400">{workerStatus?.last_stats?.updated || 0}</span>
+                <span className="text-[10px] text-gray-500 block">produtos atualizados</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800">
+                <span className="text-[11px] font-semibold text-gray-400 block">Alertas Disparados</span>
+                <span className="text-xl font-black text-amber-400">{workerStatus?.last_stats?.alerts_triggered || 0}</span>
+                <span className="text-[10px] text-gray-500 block">correspondências de preço</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Robôs Ativos & Configuração */}
+          <div className="space-y-3">
+            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+              <Bot className="w-4 h-4 text-emerald-400" />
+              Robôs e Fontes de Ingestão Ativas
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {(workerStatus?.active_scrapers || [
+                { name: "Gatry Real Deals (Páginas 1 a 4)", target: "Amazon, Magalu, ML, KaBuM", status: "Ativo", interval: "15 min" },
+                { name: "Curated Golden Deals", target: "Top 32 Ofertas Auditadas", status: "Ativo", interval: "15 min" },
+                { name: "Targeted Price Tracker", target: "Histórico & Alertas de Usuários", status: "Ativo", interval: "Contínuo" }
+              ]).map((s, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-gray-900/60 border border-gray-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-white">{s.name}</span>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                      {s.status}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Alvo: <strong className="text-gray-300">{s.target}</strong>
+                  </p>
+                  <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-emerald-500" />
+                    <span>Ciclo: a cada {s.interval}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Histórico Recente de Execuções */}
+          <div className="glass-card rounded-3xl p-6 border border-gray-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-sm flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-400" />
+                Histórico Recente de Varreduras
+              </h3>
+              <span className="text-xs text-gray-400">Últimas execuções registradas</span>
+            </div>
+
+            {workerStatus?.history && workerStatus.history.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-gray-800">
+                      <th className="pb-3 font-semibold">Horário</th>
+                      <th className="pb-3 font-semibold">Tipo</th>
+                      <th className="pb-3 font-semibold">Duração</th>
+                      <th className="pb-3 font-semibold">Novas Ofertas</th>
+                      <th className="pb-3 font-semibold">Atualizadas</th>
+                      <th className="pb-3 font-semibold">Quedas Detectadas</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800/60">
+                    {workerStatus.history.map((h, i) => (
+                      <tr key={i} className="hover:bg-gray-800/20">
+                        <td className="py-2.5 font-mono text-gray-300">
+                          {new Date(h.timestamp).toLocaleTimeString("pt-BR")}
+                        </td>
+                        <td className="py-2.5">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            h.type === "manual" ? "bg-purple-500/20 text-purple-300" : "bg-emerald-500/20 text-emerald-300"
+                          }`}>
+                            {h.type === "manual" ? "Manual" : "Agendado"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 font-semibold text-gray-400">
+                          {h.duration_seconds ? `${h.duration_seconds}s` : "-"}
+                        </td>
+                        <td className="py-2.5 font-bold text-white">
+                          {h.stats?.inserted ?? 0}
+                        </td>
+                        <td className="py-2.5 font-bold text-emerald-400">
+                          {h.stats?.updated ?? 0}
+                        </td>
+                        <td className="py-2.5 font-bold text-rose-400">
+                          {h.stats?.price_drops ?? 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-gray-500 text-xs">
+                Nenhum histórico registrado ainda. Clique em "Executar Varredura Agora" para iniciar.
+              </div>
+            )}
           </div>
         </section>
       )}

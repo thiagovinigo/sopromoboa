@@ -707,6 +707,7 @@ worker_state = {
     "is_running": False,
     "last_run": None,
     "last_stats": None,
+    "history": [],
 }
 
 
@@ -715,11 +716,21 @@ def background_worker_loop():
     time.sleep(5)
     while True:
         try:
+            start_t = time.time()
             worker_state["is_running"] = True
             print("[AutoWorker] Executando varredura autônoma periódica...")
             stats = run_worker_once()
-            worker_state["last_run"] = datetime.utcnow().isoformat()
+            duration = round(time.time() - start_t, 2)
+            now_iso = datetime.utcnow().isoformat()
+            worker_state["last_run"] = now_iso
             worker_state["last_stats"] = stats
+            worker_state["history"].insert(0, {
+                "timestamp": now_iso,
+                "stats": stats,
+                "duration_seconds": duration,
+                "type": "scheduled"
+            })
+            worker_state["history"] = worker_state["history"][:20]
         except Exception as e:
             print(f"[AutoWorker] Erro na execução periódica: {e}")
         finally:
@@ -737,12 +748,25 @@ def start_auto_worker_on_startup():
 @app.post("/api/worker/run")
 def trigger_worker_run():
     """Dispara uma execução sob demanda do scraper worker em background thread."""
+    if worker_state["is_running"]:
+        return {"success": False, "message": "O worker já está executando uma varredura neste momento!"}
+
     def _run():
+        start_t = time.time()
         worker_state["is_running"] = True
         try:
             stats = run_worker_once()
-            worker_state["last_run"] = datetime.utcnow().isoformat()
+            duration = round(time.time() - start_t, 2)
+            now_iso = datetime.utcnow().isoformat()
+            worker_state["last_run"] = now_iso
             worker_state["last_stats"] = stats
+            worker_state["history"].insert(0, {
+                "timestamp": now_iso,
+                "stats": stats,
+                "duration_seconds": duration,
+                "type": "manual"
+            })
+            worker_state["history"] = worker_state["history"][:20]
         finally:
             worker_state["is_running"] = False
 
@@ -751,14 +775,87 @@ def trigger_worker_run():
     return {"success": True, "message": "Scraper worker disparado em segundo plano!"}
 
 
+@app.post("/api/worker/simulate-drop")
+def simulate_price_drop(db: Session = Depends(get_db)):
+    """Simula uma queda real de preço para homologar o Radar de Quedas e os Alertas."""
+    product = (
+        db.query(ProductModel)
+        .filter(ProductModel.is_available == 1)
+        .order_by(func.random())
+        .first()
+    )
+    if not product:
+        raise HTTPException(status_code=404, detail="Nenhum produto cadastrado para simular")
+
+    now = datetime.utcnow()
+    old_price = product.price
+    new_price = round(old_price * 0.82, 2)
+
+    product.previous_price = old_price
+    product.price = new_price
+    product.price_dropped = 1
+    product.price_changed_at = now
+    product.last_updated = now
+
+    if product.lowest_historic_price is None or new_price < product.lowest_historic_price:
+        product.lowest_historic_price = new_price
+
+    product.discount_percent = calculate_discount_percent(
+        new_price,
+        list_price=product.list_price,
+        previous_price=old_price
+    )
+
+    db.add(PriceHistoryModel(
+        product_id=product.id,
+        price=new_price,
+        seen_at=now
+    ))
+
+    matched_alerts = 0
+    active_alerts = db.query(AlertModel).filter(AlertModel.is_active == 1).all()
+    for alert in active_alerts:
+        if alert.search_term.lower() in product.title.lower():
+            if alert.target_price is None or new_price <= alert.target_price:
+                alert.matched_count = (alert.matched_count or 0) + 1
+                alert.last_notified_at = now
+                matched_alerts += 1
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Queda simulada com sucesso para '{product.title}'!",
+        "deal": {
+            "id": product.id,
+            "title": product.title,
+            "old_price": old_price,
+            "new_price": new_price,
+            "discount_percent": product.discount_percent,
+            "matched_alerts": matched_alerts
+        }
+    }
+
+
 @app.get("/api/worker/status")
-def get_worker_status():
+def get_worker_status(db: Session = Depends(get_db)):
     """Retorna o status atual do worker, última execução e estatísticas."""
+    total_prods = db.query(ProductModel).filter(ProductModel.is_available == 1).count()
+    total_drops = db.query(ProductModel).filter(ProductModel.price_dropped == 1).count()
+
     return {
         "is_running": worker_state["is_running"],
         "last_run": worker_state["last_run"],
         "last_stats": worker_state["last_stats"],
-        "interval_minutes": 15
+        "history": worker_state.get("history", []),
+        "interval_minutes": 15,
+        "total_monitored": total_prods,
+        "total_active_drops": total_drops,
+        "active_scrapers": [
+            {"name": "Gatry Real Deals (Páginas 1 a 4)", "target": "Amazon, Magalu, ML, KaBuM", "status": "Ativo", "interval": "15 min"},
+            {"name": "Curated Golden Deals", "target": "Top 32 Ofertas Auditadas", "status": "Ativo", "interval": "15 min"},
+            {"name": "Targeted Price Tracker", "target": "Histórico & Alertas de Usuários", "status": "Ativo", "interval": "Contínuo"},
+        ]
     }
 
 
