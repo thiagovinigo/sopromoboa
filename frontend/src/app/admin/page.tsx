@@ -203,6 +203,15 @@ export default function AdminPage() {
     setAdminDeals(dealsRes);
     setStats(statsRes);
     setPrograms(progRes);
+    if (progRes && Array.isArray(progRes)) {
+      const initialTags: Record<string, string> = { amazon: "thiagovinigo-20" };
+      progRes.forEach((p: any) => {
+        if (p.network_slug && p.tracking_id) {
+          initialTags[p.network_slug] = p.tracking_id;
+        }
+      });
+      setQuickTags((prev) => ({ ...initialTags, ...prev }));
+    }
     setWorkerStatus(workerRes);
     if (workerRes) {
       setWorkerRunning(workerRes.is_running);

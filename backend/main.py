@@ -643,6 +643,10 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
 
     target_url = product.affiliate_url or product.url
 
+    # Busca tag dinâmica cadastrada no banco de dados para a Amazon
+    amazon_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "amazon").first()
+    amazon_tag = amazon_prog.tracking_id if (amazon_prog and amazon_prog.tracking_id) else "quepromo-20"
+
     # Se a URL for inválida ou um identificador interno de teste, resolve automaticamente para busca direta na loja
     markers = [
         "/dp/ama_", "/p/mer_", "/produto/mag_", "/produto/kab_",
@@ -664,21 +668,34 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
         s = (product.source or "").lower()
 
         if "amazon" in s:
-            target_url = f"https://www.amazon.com.br/s?k={q}&tag=sopromoboa-20&linkCode=ll2&ref=as_li_ss_tl"
+            target_url = f"https://www.amazon.com.br/s?k={q}&tag={amazon_tag}&linkCode=ll2&ref=as_li_ss_tl"
         elif "mercado" in s:
-            target_url = f"https://lista.mercadolivre.com.br/{q_slug}?matt_tool=sopromoboa_ml"
+            ml_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "mercadolivre").first()
+            ml_tag = ml_prog.tracking_id if (ml_prog and ml_prog.tracking_id) else "quepromo_ml"
+            target_url = f"https://lista.mercadolivre.com.br/{q_slug}?matt_tool={ml_tag}"
         elif "magalu" in s or "magazine" in s:
-            target_url = f"https://www.magazineluiza.com.br/busca/{q_slug}/?parceiro=sopromoboa&tipo=link"
+            mag_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "magalu").first()
+            mag_tag = mag_prog.tracking_id if (mag_prog and mag_prog.tracking_id) else "quepromo"
+            target_url = f"https://www.magazineluiza.com.br/busca/{q_slug}/?parceiro={mag_tag}&tipo=link"
         elif "kabum" in s:
-            target_url = f"https://www.kabum.com.br/busca/{q_slug}?tag=sopromoboa"
+            target_url = f"https://www.kabum.com.br/busca/{q_slug}?tag=quepromo"
         elif "shopee" in s:
-            target_url = f"https://shopee.com.br/search?keyword={q}&af_siteid=sopromoboa_sp"
+            target_url = f"https://shopee.com.br/search?keyword={q}&af_siteid=quepromo_sp"
         elif "casas" in s or "bahia" in s:
-            target_url = f"https://www.casasbahia.com.br/{q_slug}/b?parceiro=sopromoboa"
+            target_url = f"https://www.casasbahia.com.br/{q_slug}/b?parceiro=quepromo"
         elif "terabyte" in s:
             target_url = f"https://www.terabyteshop.com.br/busca?str={q}"
         else:
             target_url = f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_title + ' ' + (product.source or ''))}"
+    else:
+        # Se for uma URL direta da Amazon, injeta/substitui a tag do afiliado dinamicamente
+        if "amazon.com.br" in target_url:
+            import re
+            if "tag=" in target_url:
+                target_url = re.sub(r"tag=[^&]+", f"tag={amazon_tag}", target_url)
+            else:
+                sep = "&" if "?" in target_url else "?"
+                target_url = f"{target_url}{sep}tag={amazon_tag}"
 
     return RedirectResponse(url=target_url, status_code=307)
 

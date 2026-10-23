@@ -30,7 +30,7 @@ const STORE_METADATA: Record<
     description:
       "Líder global com entrega rápida Prime, catálogo completo de eletrônicos, Kindles, informática e importados.",
     highlights: ["Frete Grátis com Prime", "Ofertas Relâmpago Diárias", "Garantia A a Z"],
-    officialUrl: "https://www.amazon.com.br?tag=sopromoboa-20&utm_source=sopromoboa",
+    officialUrl: "https://www.amazon.com.br?tag=thiagovinigo-20&utm_source=quepromo",
     bgGradient: "from-amber-950/30 to-gray-900/90",
     badgeColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
     borderColor: "hover:border-amber-500/40",
