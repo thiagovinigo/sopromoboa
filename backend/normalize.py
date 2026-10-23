@@ -18,20 +18,32 @@ CATEGORY_RULES = [
         ]
     ),
     (
+        "hardware",
+        [
+            r"\brtx\b", r"\brx \d{3,4}\b", r"\bplaca de v[ií]deo\b", r"\bryzen\b",
+            r"\bintel core\b", r"\bssd\b", r"\bnvme\b", r"\bmem[oó]ria ram\b",
+            r"\bplaca-m[aã]e\b", r"\bfonte \d+w\b", r"\bwater cooler\b", r"\bgabinete\b"
+        ]
+    ),
+    (
+        "perifericos",
+        [
+            r"\bmonitor\b", r"\bteclado\b", r"\bmouse\b", r"\bheadset\b",
+            r"\bwebcam\b", r"\bmicrofone\b", r"\bmousepad\b", r"\bsuporte articulado\b"
+        ]
+    ),
+    (
         "informatica",
         [
             r"\bnotebook\b", r"\blaptop\b", r"\bmacbook\b", r"\bcomputador\b",
-            r"\bssd\b", r"\bnvme\b", r"\bmonitor\b", r"\bteclado\b", r"\bmouse\b",
-            r"\bryzen\b", r"\bintel core\b", r"\brtx\b", r"\brx \d{3,4}\b",
-            r"\bplaca de v[ií]deo\b", r"\bmem[oó]ria ram\b", r"\broteador\b"
+            r"\btablet\b", r"\bipad\b", r"\broteador\b"
         ]
     ),
     (
         "eletronicos",
         [
             r"\bsmart tv\b", r"\btv \d{2}\b", r"\bfone de ouvido\b", r"\bheadphone\b",
-            r"\bheadset\b", r"\bairpods\b", r"\becho dot\b", r"\balexa\b",
-            r"\bkindle\b", r"\bsoundbar\b", r"\bcaixa de som\b", r"\bjbl\b",
+            r"\bairpods\b", r"\bsoundbar\b", r"\bcaixa de som\b", r"\bjbl\b",
             r"\bprojetor\b", r"\bsmartwatch\b", r"\brel[oó]gio inteligente\b"
         ]
     ),
@@ -40,7 +52,7 @@ CATEGORY_RULES = [
         [
             r"\bplaystation\b", r"\bps5\b", r"\bps4\b", r"\bxbox\b", r"\bnintendo switch\b",
             r"\bdualshock\b", r"\bdualsense\b", r"\bconsole\b", r"\bjogo ps\b",
-            r"\bcontrole sem fio\b", r"\bgamer\b"
+            r"\bcontrole sem fio\b", r"\bgamer\b", r"\bvolante\b"
         ]
     ),
     (
@@ -55,8 +67,37 @@ CATEGORY_RULES = [
     (
         "casa",
         [
+            r"\becho\b", r"\balexa\b", r"\bfechadura digital\b", r"\bl[aâ]mpada\b",
             r"\bjogo de panelas\b", r"\bpanela de press[aã]o\b", r"\bcolch[aã]o\b",
-            r"\btravesseiro\b", r"\bparafusadeira\b", r"\bferramenta\b", r"\bl[aâ]mpada smart\b"
+            r"\bcadeira ergon[oô]mica\b", r"\bcadeira gamer\b"
+        ]
+    ),
+    (
+        "esportes",
+        [
+            r"\bt[eê]nis\b", r"\bcorrida\b", r"\bacademia\b", r"\bcamisa de time\b",
+            r"\bchuteira\b", r"\bmochila esportiva\b", r"\bgarmin\b"
+        ]
+    ),
+    (
+        "saude",
+        [
+            r"\bwhey\b", r"\bcreatina\b", r"\bsuplemento\b", r"\bpr[eé]-treino\b",
+            r"\b[oô]mega 3\b", r"\bvitamina\b", r"\bbarra de prote[ií]na\b"
+        ]
+    ),
+    (
+        "ferramentas",
+        [
+            r"\bparafusadeira\b", r"\bfuradeira\b", r"\blavadora de alta press[aã]o\b",
+            r"\bjogo de ferramentas\b", r"\btrena\b", r"\bserra\b", r"\bmaleta de ferramentas\b"
+        ]
+    ),
+    (
+        "livros",
+        [
+            r"\bkindle\b", r"\blivro\b", r"\bbox trilogia\b", r"\bcapa dura\b",
+            r"\bhq\b", r"\bmang[aá]\b"
         ]
     ),
 ]
@@ -65,7 +106,9 @@ BRANDS = [
     "Apple", "Samsung", "Xiaomi", "Motorola", "LG", "Sony", "Dell", "Lenovo",
     "Asus", "Acer", "HP", "JBL", "Logitech", "Razer", "Kingston", "Corsair",
     "Mondial", "Philco", "Britânia", "Electrolux", "Brastemp", "Consul",
-    "Philips", "Walita", "TCL", "Positivo", "HyperX", "Anker", "Baseus"
+    "Philips", "Walita", "TCL", "Positivo", "HyperX", "Anker", "Baseus",
+    "Nike", "Adidas", "Asics", "Olympikus", "Growth", "Max Titanium", "Dux",
+    "Bosch", "DeWalt", "Makita", "Kärcher", "WAP", "Tramontina", "Vonder", "Garmin"
 ]
 
 SPAM_PATTERNS = [

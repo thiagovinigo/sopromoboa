@@ -15,7 +15,6 @@ import {
   Zap,
 } from "lucide-react";
 import DealCard from "@/components/DealCard";
-import AlertModal from "@/components/AlertModal";
 import {
   fetchDeals,
   fetchCategories,
@@ -44,10 +43,6 @@ export default function HomePage() {
   // Categorias e Lojas
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [stores, setStores] = useState<StoreItem[]>([]);
-
-  // Modal de Alerta
-  const [selectedDealForAlert, setSelectedDealForAlert] = useState<Deal | null>(null);
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   // Carrega categorias, lojas e favoritos iniciais
   useEffect(() => {
@@ -95,11 +90,6 @@ export default function HomePage() {
     e.preventDefault();
     setPage(0);
     loadDeals();
-  };
-
-  const handleOpenAlert = (deal: Deal) => {
-    setSelectedDealForAlert(deal);
-    setIsAlertOpen(true);
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -316,7 +306,6 @@ export default function HomePage() {
                     isFav ? [...prev, id] : prev.filter((x) => x !== id)
                   );
                 }}
-                onOpenAlertModal={handleOpenAlert}
               />
             ))}
           </div>
@@ -345,13 +334,6 @@ export default function HomePage() {
           </div>
         )}
       </section>
-
-      {/* Modal de Alerta */}
-      <AlertModal
-        deal={selectedDealForAlert}
-        isOpen={isAlertOpen}
-        onClose={() => setIsAlertOpen(false)}
-      />
     </div>
   );
 }

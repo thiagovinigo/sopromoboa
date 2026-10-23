@@ -46,7 +46,7 @@ export default function RootLayout({
               <Link href="/" className="hover:text-white transition-colors">Todas as Ofertas</Link>
               <Link href="/radar" className="hover:text-rose-400 transition-colors">Radar de Quedas</Link>
               <Link href="/afiliados" className="hover:text-emerald-400 transition-colors">Gestão de Afiliados</Link>
-              <Link href="/alertas" className="hover:text-amber-400 transition-colors">Meus Alertas</Link>
+              <Link href="/busca-personalizada" className="hover:text-cyan-400 transition-colors">Busca Personalizada</Link>
             </div>
 
             <div className="text-[11px] text-gray-400 text-center md:text-right">

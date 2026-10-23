@@ -8,7 +8,7 @@ import {
   Star,
   Zap,
   Ticket,
-  Bell,
+  Bot,
   Flame,
   Smartphone,
   Laptop,
@@ -146,13 +146,13 @@ export default function DealCard({
           </svg>
         </button>
 
-        <button
-          onClick={() => onOpenAlertModal && onOpenAlertModal(deal)}
-          title="Criar alerta de preço para este item"
-          className="p-1.5 rounded-full bg-gray-900/80 hover:bg-amber-500/20 text-gray-400 hover:text-amber-400 border border-gray-700 hover:border-amber-500/40 transition-colors"
+        <Link
+          href={`/busca-personalizada?q=${encodeURIComponent(deal.title)}`}
+          title="Workers: comparar preços em todas as lojas"
+          className="p-1.5 rounded-full bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 border border-gray-700 hover:border-cyan-500/40 transition-colors"
         >
-          <Bell className="w-3.5 h-3.5" />
-        </button>
+          <Bot className="w-3.5 h-3.5" />
+        </Link>
       </div>
 
       {/* Imagem do Produto com Fallback Blindado (sem texto quebrado sobreposto) */}

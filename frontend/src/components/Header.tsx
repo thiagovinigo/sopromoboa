@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Flame, Bell, Link2, Sparkles, RefreshCw, Search, Store } from "lucide-react";
+import { Flame, Bell, Link2, Sparkles, RefreshCw, Search, Store, Bot } from "lucide-react";
 import { triggerWorker } from "@/lib/api";
 
 export default function Header() {
@@ -74,11 +74,11 @@ export default function Header() {
               Favoritos
             </Link>
             <Link
-              href="/alertas"
+              href="/busca-personalizada"
               className="text-sm font-semibold text-gray-300 hover:text-white transition-colors flex items-center gap-1.5"
             >
-              <Bell className="w-4 h-4 text-amber-400" />
-              Alertas
+              <Bot className="w-4 h-4 text-cyan-400" />
+              Busca Personalizada
             </Link>
             <Link
               href="/lojas"

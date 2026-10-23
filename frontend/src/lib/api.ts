@@ -284,3 +284,46 @@ export async function simulatePriceDrop() {
   return res.json();
 }
 
+export interface StorePriceComparison {
+  store: string;
+  price: number;
+  deal_id: string;
+  product_title: string;
+  url: string;
+  affiliate_url?: string | null;
+  image_url?: string | null;
+  is_lowest: boolean;
+  price_diff: number;
+  free_shipping: number;
+}
+
+export interface WorkerSearchResult {
+  query: string;
+  total_found: number;
+  best_price?: number | null;
+  max_price?: number | null;
+  average_price?: number | null;
+  potential_savings?: number | null;
+  best_store?: string | null;
+  stores_comparison: StorePriceComparison[];
+  items: Deal[];
+}
+
+export async function fetchComparatorSearch(q: string): Promise<WorkerSearchResult> {
+  try {
+    const res = await fetch(`${API_BASE}/api/comparator/search?q=${encodeURIComponent(q)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Falha na busca personalizada");
+    return await res.json();
+  } catch (err) {
+    console.error("Erro na busca personalizada:", err);
+    return {
+      query: q,
+      total_found: 0,
+      stores_comparison: [],
+      items: [],
+    };
+  }
+}
+

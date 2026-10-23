@@ -10,7 +10,7 @@ import {
   Star,
   Zap,
   Ticket,
-  Bell,
+  Bot,
   Check,
   ShieldCheck,
   ChevronLeft,
@@ -20,7 +20,6 @@ import {
 import { fetchDealDetail, DealDetail, Deal } from "@/lib/api";
 import PriceChart from "@/components/PriceChart";
 import DealCard from "@/components/DealCard";
-import AlertModal from "@/components/AlertModal";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
@@ -230,13 +229,13 @@ export default function ProductDetailPage() {
               Ir Para a Loja com Desconto ({deal.source}) <ExternalLink className="w-5 h-5" />
             </a>
 
-            <button
-              onClick={() => setIsAlertOpen(true)}
-              className="w-full py-2.5 px-4 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 hover:text-white text-xs font-bold flex items-center justify-center gap-2 border border-gray-700 transition-colors"
+            <Link
+              href={`/busca-personalizada?q=${encodeURIComponent(deal.title)}`}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600/20 via-blue-600/20 to-indigo-600/20 hover:from-cyan-600/30 hover:to-indigo-600/30 text-cyan-300 hover:text-cyan-200 text-xs font-bold flex items-center justify-center gap-2 border border-cyan-500/40 transition-all shadow-lg shadow-cyan-950/40"
             >
-              <Bell className="w-4 h-4 text-rose-500" />
-              Criar Alerta de Preço (Avisar se cair ainda mais)
-            </button>
+              <Bot className="w-4 h-4 text-cyan-400" />
+              Comparar Preços em Todas as Lojas (Workers)
+            </Link>
           </div>
         </div>
       </div>
@@ -264,13 +263,6 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
-
-      {/* Modal de Alerta */}
-      <AlertModal
-        deal={deal}
-        isOpen={isAlertOpen}
-        onClose={() => setIsAlertOpen(false)}
-      />
     </div>
   );
 }

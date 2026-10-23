@@ -12,7 +12,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, asc
+import re
+import urllib.parse
+from sqlalchemy import func, desc, asc, or_
 
 from database import get_db, engine, Base
 from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, ClickModel, AffiliateProgramModel, FavoriteModel
@@ -143,6 +145,11 @@ class StorePriceComparison(BaseModel):
     deal_id: str
     product_title: str
     url: str
+    affiliate_url: Optional[str] = None
+    image_url: Optional[str] = None
+    is_lowest: bool = False
+    price_diff: float = 0.0
+    free_shipping: int = 0
 
 
 class WorkerSearchResult(BaseModel):
@@ -152,8 +159,129 @@ class WorkerSearchResult(BaseModel):
     max_price: Optional[float] = None
     average_price: Optional[float] = None
     potential_savings: Optional[float] = None
+    best_store: Optional[str] = None
     stores_comparison: List[StorePriceComparison] = []
     items: List[DealOut] = []
+
+
+# ==========================================
+# BUSCA PERSONALIZADA & COMPARADOR MULTI-LOJAS
+# ==========================================
+@app.get("/api/comparator/search", response_model=WorkerSearchResult)
+def comparator_search(
+    q: str = Query(..., min_length=2, description="Nome do produto para busca personalizada"),
+    db: Session = Depends(get_db)
+):
+    """Busca personalizada: analisa os melhores preços em todas as lojas para o produto informado."""
+    clean_q = q.strip()
+    words = [w for w in re.split(r"\s+", clean_q) if len(w) > 1]
+
+    # 1. Busca ampla no banco de ofertas
+    query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+    for word in words[:4]:
+        query = query.filter(ProductModel.title.ilike(f"%{word}%"))
+
+    matches = query.order_by(ProductModel.price.asc()).limit(60).all()
+
+    # 2. Fallback caso não encontre com todos os termos simultâneos
+    if not matches and len(words) > 1:
+        fallback_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+        fallback_query = fallback_query.filter(
+            or_(*[ProductModel.title.ilike(f"%{w}%") for w in words[:3]])
+        )
+        matches = fallback_query.order_by(ProductModel.price.asc()).limit(60).all()
+
+    # 3. Agrupa por loja (source) para identificar o melhor preço de cada marketplace
+    store_deals: Dict[str, ProductModel] = {}
+    for p in matches:
+        s = p.source or "Outros"
+        if s not in store_deals or p.price < store_deals[s].price:
+            store_deals[s] = p
+
+    items_out = [DealOut.model_validate(p) for p in matches]
+    for d in items_out:
+        d.is_all_time_low = is_all_time_low(d.price, d.lowest_historic_price)
+
+    if store_deals:
+        all_prices = [p.price for p in store_deals.values()]
+        best_price = min(all_prices)
+        max_price = max(all_prices)
+        avg_price = round(sum(all_prices) / len(all_prices), 2)
+        savings = round(max_price - best_price, 2)
+        best_store = None
+
+        comparison_list = []
+        for store_name, p in store_deals.items():
+            is_low = (p.price == best_price)
+            if is_low and not best_store:
+                best_store = store_name
+            diff = round(p.price - best_price, 2)
+            comparison_list.append(StorePriceComparison(
+                store=store_name,
+                price=p.price,
+                deal_id=p.id,
+                product_title=p.title,
+                url=p.url,
+                affiliate_url=p.affiliate_url or p.url,
+                image_url=p.image_url,
+                is_lowest=is_low,
+                price_diff=diff,
+                free_shipping=p.free_shipping or 0
+            ))
+
+        comparison_list.sort(key=lambda x: x.price)
+
+        return WorkerSearchResult(
+            query=clean_q,
+            total_found=len(matches),
+            best_price=best_price,
+            max_price=max_price,
+            average_price=avg_price,
+            potential_savings=savings,
+            best_store=best_store,
+            stores_comparison=comparison_list,
+            items=items_out
+        )
+    else:
+        # Fallback de busca comissionada nos principais varejistas
+        q_enc = urllib.parse.quote_plus(clean_q)
+        q_slug = urllib.parse.quote_plus("-".join(words).lower())
+
+        fallback_stores = [
+            ("Amazon", f"https://www.amazon.com.br/s?k={q_enc}&tag=sopromoboa-20"),
+            ("Mercado Livre", f"https://lista.mercadolivre.com.br/{q_slug}?matt_tool=sopromoboa_ml"),
+            ("Magazine Luiza", f"https://www.magazineluiza.com.br/busca/{q_slug}/?parceiro=sopromoboa"),
+            ("KaBuM!", f"https://www.kabum.com.br/busca/{q_slug}?tag=sopromoboa"),
+            ("Shopee", f"https://shopee.com.br/search?keyword={q_enc}&af_siteid=sopromoboa_sp"),
+        ]
+
+        comparison_list = [
+            StorePriceComparison(
+                store=s_name,
+                price=0.0,
+                deal_id=f"search_{s_name.lower().replace(' ', '_')}",
+                product_title=f"Buscar '{clean_q}' na loja oficial {s_name}",
+                url=s_url,
+                affiliate_url=s_url,
+                image_url=None,
+                is_lowest=False,
+                price_diff=0.0,
+                free_shipping=1
+            )
+            for s_name, s_url in fallback_stores
+        ]
+
+        return WorkerSearchResult(
+            query=clean_q,
+            total_found=0,
+            best_price=None,
+            max_price=None,
+            average_price=None,
+            potential_savings=None,
+            best_store=None,
+            stores_comparison=comparison_list,
+            items=[]
+        )
 
 
 # ==========================================
