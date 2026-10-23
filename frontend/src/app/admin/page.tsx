@@ -25,6 +25,14 @@ import {
   Activity,
   CheckCircle2,
   Play,
+  Compass,
+  ShieldCheck,
+  Award,
+  XCircle,
+  Search,
+  Globe,
+  Percent,
+  Star,
 } from "lucide-react";
 import {
   fetchAdminDeals,
@@ -41,10 +49,18 @@ import {
   fetchWorkerStatus,
   triggerWorker,
   simulatePriceDrop,
+  DiscoveredStore,
+  HunterStats,
+  fetchHunterStores,
+  fetchHunterStats,
+  runHunterCycle,
+  approveHunterStore,
+  rejectHunterStore,
+  auditCustomStoreUrl,
 } from "@/lib/api";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"anuncios" | "publicar" | "gerador" | "tags" | "metricas" | "workers">("anuncios");
+  const [activeTab, setActiveTab] = useState<"anuncios" | "publicar" | "gerador" | "tags" | "metricas" | "workers" | "hunter">("anuncios");
 
   // Dados
   const [adminDeals, setAdminDeals] = useState<Deal[]>([]);
@@ -55,6 +71,18 @@ export default function AdminPage() {
   const [simulating, setSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<{ success: boolean; message: string; deal?: any } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Estados do Agente Caçador de Lojas AI
+  const [hunterStores, setHunterStores] = useState<DiscoveredStore[]>([]);
+  const [hunterStats, setHunterStats] = useState<HunterStats | null>(null);
+  const [hunterFilter, setHunterFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  const [hunterSearch, setHunterSearch] = useState("");
+  const [hunterRunning, setHunterRunning] = useState(false);
+  const [hunterSuccessMsg, setHunterSuccessMsg] = useState("");
+  const [customAuditUrl, setCustomAuditUrl] = useState("");
+  const [customAuditName, setCustomAuditName] = useState("");
+  const [auditing, setAuditing] = useState(false);
+  const [auditMsg, setAuditMsg] = useState("");
 
   // Formulário de Novo Anúncio
   const [title, setTitle] = useState("");
@@ -86,6 +114,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadData();
+    loadHunterData();
   }, []);
 
   const loadData = async () => {
@@ -104,6 +133,73 @@ export default function AdminPage() {
       setWorkerRunning(workerRes.is_running);
     }
     setLoading(false);
+  };
+
+  const loadHunterData = async () => {
+    const [stores, hStats] = await Promise.all([
+      fetchHunterStores("all"),
+      fetchHunterStats(),
+    ]);
+    setHunterStores(stores);
+    setHunterStats(hStats);
+  };
+
+  const handleRunHunter = async () => {
+    setHunterRunning(true);
+    setHunterSuccessMsg("Store Hunter AI vasculhando a internet por lojas com selo RA1000/Ebit...");
+    try {
+      const res = await runHunterCycle();
+      setHunterSuccessMsg(res.message || "Varredura concluída!");
+      await loadHunterData();
+      setTimeout(() => setHunterSuccessMsg(""), 6000);
+    } catch {
+      setHunterSuccessMsg("Erro ao executar varredura do agente.");
+      setTimeout(() => setHunterSuccessMsg(""), 4000);
+    } finally {
+      setHunterRunning(false);
+    }
+  };
+
+  const handleApproveStore = async (storeId: number) => {
+    try {
+      await approveHunterStore(storeId);
+      await loadHunterData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRejectStore = async (storeId: number) => {
+    try {
+      await rejectHunterStore(storeId);
+      await loadHunterData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAuditCustomUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customAuditUrl) return;
+    setAuditing(true);
+    setAuditMsg("Agente auditando SSL, domínio e reputação...");
+    try {
+      const res = await auditCustomStoreUrl(customAuditUrl, customAuditName);
+      if (res.already_exists) {
+        setAuditMsg(`Loja já catalogada com Trust Score de ${res.store.trust_score}%.`);
+      } else {
+        setAuditMsg(`Loja '${res.name}' auditada! Trust Score: ${res.trust_score}%. Adicionada para aprovação.`);
+        setCustomAuditUrl("");
+        setCustomAuditName("");
+        await loadHunterData();
+      }
+      setTimeout(() => setAuditMsg(""), 6000);
+    } catch {
+      setAuditMsg("Erro ao auditar loja.");
+      setTimeout(() => setAuditMsg(""), 4000);
+    } finally {
+      setAuditing(false);
+    }
   };
 
   const handleTriggerWorker = async () => {
@@ -338,6 +434,23 @@ export default function AdminPage() {
           <Bot className="w-4 h-4" /> Robôs & Workers
           {workerStatus?.is_running && (
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab("hunter")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            activeTab === "hunter"
+              ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Compass className={`w-4 h-4 ${hunterRunning ? "animate-spin text-violet-400" : "text-violet-400"}`} />
+          Caçador de Lojas AI
+          {hunterStats && hunterStats.pending_approval > 0 && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-gray-950">
+              {hunterStats.pending_approval}
+            </span>
           )}
         </button>
       </div>
@@ -1031,6 +1144,370 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        </section>
+      )}
+
+      {/* ABA 7: STORE HUNTER AI AGENT - CAÇADOR DE LOJAS */}
+      {activeTab === "hunter" && (
+        <section className="space-y-6">
+          {/* Banner do Agente */}
+          <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-violet-500/30 bg-gradient-to-r from-violet-950/60 via-purple-950/30 to-gray-900 shadow-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="max-w-2xl space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-500/40 text-violet-300 text-xs font-black uppercase tracking-wider">
+                  <Compass className={`w-4 h-4 text-violet-400 ${hunterRunning ? "animate-spin" : ""}`} />
+                  Store Hunter AI Agent v1.0 • Radar Autônomo
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  Agente Caçador de <span className="text-violet-400">Lojas Bem Avaliadas</span>
+                </h2>
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  Nosso agente de inteligência artificial vasculha a internet auditando a reputação de e-commerces brasileiros (selos <strong>RA1000</strong> e <strong>Ótimo</strong> no Reclame Aqui, Ebit, índices de solução) e mapeia programas de afiliados para você expandir o catálogo do Só Promo Boa com 1 clique.
+                </p>
+                {hunterSuccessMsg && (
+                  <div className="p-3 rounded-xl bg-violet-500/20 border border-violet-500/40 text-violet-200 text-xs font-semibold animate-fade-in flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-violet-400 shrink-0" />
+                    {hunterSuccessMsg}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+                <button
+                  onClick={handleRunHunter}
+                  disabled={hunterRunning}
+                  className="px-5 py-3 rounded-xl text-xs font-black bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-xl shadow-violet-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Compass className={`w-4 h-4 ${hunterRunning ? "animate-spin" : ""}`} />
+                  {hunterRunning ? "Varrendo a Internet..." : "Disparar Varredura do Agente"}
+                </button>
+                <span className="text-[11px] text-gray-400 text-center">
+                  Audita lojas com nota &gt; 8.0 no Reclame Aqui
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Cards de Métricas do Hunter */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="glass-card rounded-2xl p-5 border border-gray-800">
+              <span className="text-xs font-semibold text-gray-400 block">Total Mapeadas</span>
+              <span className="text-2xl font-black text-white">{hunterStats?.total_discovered || 0}</span>
+              <span className="text-[10px] text-gray-500 block">lojas auditadas</span>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-amber-500/30 bg-amber-500/5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-amber-300 block">Aguardando Aprovação</span>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              </div>
+              <span className="text-2xl font-black text-amber-400">{hunterStats?.pending_approval || 0}</span>
+              <span className="text-[10px] text-amber-300/70 block">prontas para integrar</span>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-emerald-500/30 bg-emerald-500/5">
+              <span className="text-xs font-semibold text-emerald-300 block">Lojas Integradas</span>
+              <span className="text-2xl font-black text-emerald-400">{hunterStats?.approved || 0}</span>
+              <span className="text-[10px] text-emerald-300/70 block">ativas no comparador</span>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-purple-500/30 bg-purple-500/5">
+              <span className="text-xs font-semibold text-purple-300 block">Média Reclame Aqui</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Star className="w-4 h-4 text-purple-400 fill-purple-400" />
+                <span className="text-2xl font-black text-purple-300">{hunterStats?.average_reclame_aqui || 0}</span>
+                <span className="text-xs text-gray-500">/ 10</span>
+              </div>
+              <span className="text-[10px] text-purple-300/70 block">padrão de excelência</span>
+            </div>
+          </div>
+
+          {/* Caixa de Auditoria Instantânea de URL */}
+          <div className="glass-card rounded-2xl p-5 border border-gray-800 bg-gray-900/60">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-violet-400" />
+                  Auditar Qualquer Loja por URL
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Encontrou uma loja e quer que o agente audite a reputação e afiliação dela? Cole a URL abaixo:
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAuditCustomUrl} className="flex flex-col sm:flex-row gap-2.5">
+              <input
+                type="text"
+                placeholder="Ex: https://www.terabyteshop.com.br ou kabum.com.br"
+                value={customAuditUrl}
+                onChange={(e) => setCustomAuditUrl(e.target.value)}
+                className="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+                required
+              />
+              <input
+                type="text"
+                placeholder="Nome da Loja (Opcional)"
+                value={customAuditName}
+                onChange={(e) => setCustomAuditName(e.target.value)}
+                className="sm:w-56 bg-gray-950 border border-gray-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={auditing}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all disabled:opacity-50 shrink-0 flex items-center justify-center gap-2"
+              >
+                <Compass className={`w-3.5 h-3.5 ${auditing ? "animate-spin" : ""}`} />
+                {auditing ? "Auditando..." : "Auditar com IA"}
+              </button>
+            </form>
+
+            {auditMsg && (
+              <p className="mt-2 text-xs font-semibold text-violet-300 animate-fade-in">
+                {auditMsg}
+              </p>
+            )}
+          </div>
+
+          {/* Filtros e Busca de Lojas */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <button
+                onClick={() => setHunterFilter("pending")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  hunterFilter === "pending"
+                    ? "bg-amber-500 text-gray-950 shadow-md shadow-amber-500/20"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                Aguardando Aprovação ({hunterStores.filter((s) => s.status === "pending").length})
+              </button>
+
+              <button
+                onClick={() => setHunterFilter("approved")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  hunterFilter === "approved"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                Integradas ({hunterStores.filter((s) => s.status === "approved").length})
+              </button>
+
+              <button
+                onClick={() => setHunterFilter("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  hunterFilter === "all"
+                    ? "bg-violet-600 text-white shadow-md shadow-violet-600/20"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                Todas ({hunterStores.length})
+              </button>
+            </div>
+
+            <div className="relative sm:w-72">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Filtrar por nome, nicho..."
+                value={hunterSearch}
+                onChange={(e) => setHunterSearch(e.target.value)}
+                className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+          </div>
+
+          {/* Grid de Cards de Lojas Descobertas */}
+          {hunterStores.length === 0 ? (
+            <div className="glass-card rounded-2xl p-12 text-center border border-gray-800 space-y-3">
+              <Compass className="w-12 h-12 text-violet-400/50 mx-auto animate-pulse" />
+              <h3 className="text-base font-bold text-white">Nenhuma loja auditada no momento</h3>
+              <p className="text-xs text-gray-400 max-w-md mx-auto">
+                Clique no botão "Disparar Varredura do Agente" acima para o Store Hunter AI mapear e auditar automaticamente os maiores e-commerces brasileiros.
+              </p>
+              <button
+                onClick={handleRunHunter}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 text-white transition-all inline-flex items-center gap-2 mt-2"
+              >
+                <Compass className="w-3.5 h-3.5" /> Iniciar Varredura Agora
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {hunterStores
+                .filter((s) => {
+                  if (hunterFilter !== "all" && s.status !== hunterFilter) return false;
+                  if (hunterSearch) {
+                    const q = hunterSearch.toLowerCase();
+                    return (
+                      s.name.toLowerCase().includes(q) ||
+                      s.domain.toLowerCase().includes(q) ||
+                      s.category.toLowerCase().includes(q)
+                    );
+                  }
+                  return true;
+                })
+                .map((store) => {
+                  const isPending = store.status === "pending";
+                  const isApproved = store.status === "approved";
+                  const isRejected = store.status === "rejected";
+
+                  return (
+                    <div
+                      key={store.id}
+                      className={`glass-card rounded-2xl p-5 border transition-all flex flex-col justify-between space-y-4 ${
+                        isPending
+                          ? "border-amber-500/30 hover:border-amber-500/50 bg-gradient-to-b from-gray-900/90 to-amber-950/10"
+                          : isApproved
+                          ? "border-emerald-500/30 bg-gradient-to-b from-gray-900/90 to-emerald-950/10"
+                          : "border-gray-800 opacity-60"
+                      }`}
+                    >
+                      {/* Topo do Card */}
+                      <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                              {store.logo_url ? (
+                                <img
+                                  src={store.logo_url}
+                                  alt={store.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <Store className="w-6 h-6 text-violet-400" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-base font-black text-white">{store.name}</h3>
+                                <a
+                                  href={store.official_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Abrir site oficial"
+                                  className="text-gray-400 hover:text-white"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-gray-400 font-mono">{store.domain}</span>
+                                <span className="text-[10px] text-gray-500">•</span>
+                                <span className="text-[11px] font-semibold text-violet-300">{store.category}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Trust Score */}
+                          <div className="text-right shrink-0">
+                            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black">
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              {store.trust_score}% Confiável
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Métricas Auditadas */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 p-3 rounded-xl bg-gray-950/60 border border-gray-800/80 text-xs">
+                          <div>
+                            <span className="text-[10px] text-gray-400 block font-semibold">Reclame Aqui</span>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`px-1.5 py-0.2 rounded text-[10px] font-black ${
+                                store.reclame_aqui_badge === "RA1000"
+                                  ? "bg-purple-500 text-white"
+                                  : "bg-emerald-500/20 text-emerald-300"
+                              }`}>
+                                {store.reclame_aqui_badge || "Auditado"}
+                              </span>
+                              <span className="font-bold text-white">{store.reclame_aqui_score || "-"}</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-gray-400 block font-semibold">Índice Solução</span>
+                            <span className="font-bold text-emerald-400 block mt-0.5">
+                              {store.reclame_aqui_resolved_rate ? `${store.reclame_aqui_resolved_rate}%` : "90%+"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-gray-400 block font-semibold">Rede de Afiliados</span>
+                            <span className="font-semibold text-gray-200 block mt-0.5 truncate" title={store.affiliate_network || ""}>
+                              {store.affiliate_network || "Direto"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-gray-400 block font-semibold">Comissão Estimada</span>
+                            <span className="font-black text-emerald-400 block mt-0.5">
+                              {store.estimated_commission || "Até 8%"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Justificativa do Agente */}
+                        {store.discovered_reason && (
+                          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/20 text-[11px] text-gray-300 leading-relaxed flex items-start gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0 mt-0.5" />
+                            <span>
+                              <strong className="text-violet-300">Análise do Agente:</strong> {store.discovered_reason}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer com Ações */}
+                      <div className="pt-3 border-t border-gray-800/80 flex items-center justify-between gap-3">
+                        {isPending ? (
+                          <div className="flex items-center gap-2 w-full">
+                            <button
+                              onClick={() => handleApproveStore(store.id)}
+                              className="flex-1 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              Aprovar e Integrar ao SóPromoBoa
+                            </button>
+                            <button
+                              onClick={() => handleRejectStore(store.id)}
+                              className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-800 hover:bg-rose-500/20 text-gray-400 hover:text-rose-400 border border-gray-700 transition-colors"
+                              title="Descartar sugestão"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : isApproved ? (
+                          <div className="flex items-center justify-between w-full">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                              <CheckCircle2 className="w-4 h-4" /> Integrada ao Catálogo e Comparador
+                            </span>
+                            <a
+                              href={store.official_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-gray-400 hover:text-white flex items-center gap-1"
+                            >
+                              Visitar Loja <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-xs text-gray-500 italic">Sugestão descartada</span>
+                            <button
+                              onClick={() => handleApproveStore(store.id)}
+                              className="text-xs text-violet-400 hover:underline"
+                            >
+                              Reverter & Integrar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </section>
       )}
     </div>

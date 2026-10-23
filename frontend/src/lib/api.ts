@@ -329,3 +329,107 @@ export async function fetchComparatorSearch(q: string): Promise<WorkerSearchResu
   }
 }
 
+// ==========================================
+// STORE HUNTER AI AGENT INTERFACES & CALLS
+// ==========================================
+export interface DiscoveredStore {
+  id: number;
+  slug: string;
+  name: string;
+  domain: string;
+  official_url: string;
+  logo_url?: string | null;
+  category: string;
+  reclame_aqui_score?: number | null;
+  reclame_aqui_badge?: string | null;
+  reclame_aqui_resolved_rate?: number | null;
+  trust_score: number;
+  affiliate_network?: string | null;
+  estimated_commission?: string | null;
+  affiliate_program_url?: string | null;
+  status: "pending" | "approved" | "rejected";
+  discovered_reason?: string | null;
+  discovered_at?: string | null;
+  reviewed_at?: string | null;
+}
+
+export interface HunterStats {
+  total_discovered: number;
+  pending_approval: number;
+  approved: number;
+  rejected: number;
+  average_trust_score: number;
+  average_reclame_aqui: number;
+}
+
+export async function fetchHunterStores(
+  status: string = "all",
+  category?: string,
+  search?: string
+): Promise<DiscoveredStore[]> {
+  try {
+    const params = new URLSearchParams();
+    if (status && status !== "all") params.append("status", status);
+    if (category && category !== "all") params.append("category", category);
+    if (search) params.append("search", search);
+
+    const res = await fetch(`${API_BASE}/api/agent/hunter/stores?${params.toString()}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("Falha ao buscar lojas descobertas");
+    return await res.json();
+  } catch (err) {
+    console.error("Erro fetchHunterStores:", err);
+    return [];
+  }
+}
+
+export async function fetchHunterStats(): Promise<HunterStats | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/agent/hunter/stats`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha ao buscar stats do hunter");
+    return await res.json();
+  } catch (err) {
+    console.error("Erro fetchHunterStats:", err);
+    return null;
+  }
+}
+
+export async function runHunterCycle(): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/agent/hunter/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Falha ao acionar varredura do caçador de lojas");
+  return await res.json();
+}
+
+export async function approveHunterStore(storeId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Falha ao aprovar loja");
+  return await res.json();
+}
+
+export async function rejectHunterStore(storeId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Falha ao rejeitar loja");
+  return await res.json();
+}
+
+export async function auditCustomStoreUrl(url: string, storeName?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/agent/hunter/audit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, store_name: storeName }),
+  });
+  if (!res.ok) throw new Error("Falha ao auditar URL");
+  return await res.json();
+}
+
+

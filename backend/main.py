@@ -17,11 +17,12 @@ import urllib.parse
 from sqlalchemy import func, desc, asc, or_
 
 from database import get_db, engine, Base
-from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, ClickModel, AffiliateProgramModel, FavoriteModel
+from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, ClickModel, AffiliateProgramModel, FavoriteModel, DiscoveredStoreModel
 from pricing import is_price_drop_active, is_all_time_low, calculate_discount_percent, DROP_WINDOW_DAYS
 from affiliate import build_affiliate_url, create_managed_link, detect_store_from_url
 from normalize import clean_title, detect_category, detect_brand
 from scraper_worker import run_worker_once
+from store_hunter_agent import StoreHunterAgent
 
 # Inicialização do banco de dados
 Base.metadata.create_all(bind=engine)
@@ -1235,3 +1236,114 @@ def get_worker_status(db: Session = Depends(get_db)):
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "app": "SoPromoBoa", "timestamp": datetime.utcnow()}
+
+
+# ==========================================
+# STORE HUNTER AI AGENT - ENDPOINTS
+# ==========================================
+class DiscoveredStoreOut(BaseModel):
+    id: int
+    slug: str
+    name: str
+    domain: str
+    official_url: str
+    logo_url: Optional[str] = None
+    category: str
+    reclame_aqui_score: Optional[float] = None
+    reclame_aqui_badge: Optional[str] = None
+    reclame_aqui_resolved_rate: Optional[float] = None
+    trust_score: int
+    affiliate_network: Optional[str] = None
+    estimated_commission: Optional[str] = None
+    affiliate_program_url: Optional[str] = None
+    status: str
+    discovered_reason: Optional[str] = None
+    discovered_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AuditUrlRequest(BaseModel):
+    url: str
+    store_name: Optional[str] = None
+
+
+@app.get("/api/agent/hunter/stores", response_model=List[DiscoveredStoreOut])
+def get_hunter_stores(
+    status: str = Query("all", description="Filtrar por status: all, pending, approved, rejected"),
+    category: Optional[str] = Query(None, description="Filtrar por categoria"),
+    search: Optional[str] = Query(None, description="Buscar por nome ou domínio"),
+    db: Session = Depends(get_db)
+):
+    """Lista lojas descobertas e auditadas pelo Store Hunter AI Agent."""
+    query = db.query(DiscoveredStoreModel)
+    if status and status != "all":
+        query = query.filter(DiscoveredStoreModel.status == status)
+    if category and category != "all":
+        query = query.filter(DiscoveredStoreModel.category.ilike(f"%{category}%"))
+    if search:
+        query = query.filter(
+            or_(
+                DiscoveredStoreModel.name.ilike(f"%{search}%"),
+                DiscoveredStoreModel.domain.ilike(f"%{search}%")
+            )
+        )
+    return query.order_by(desc(DiscoveredStoreModel.trust_score), desc(DiscoveredStoreModel.id)).all()
+
+
+@app.get("/api/agent/hunter/stats")
+def get_hunter_stats(db: Session = Depends(get_db)):
+    """Retorna métricas em tempo real do Store Hunter AI Agent."""
+    total = db.query(DiscoveredStoreModel).count()
+    pending = db.query(DiscoveredStoreModel).filter(DiscoveredStoreModel.status == "pending").count()
+    approved = db.query(DiscoveredStoreModel).filter(DiscoveredStoreModel.status == "approved").count()
+    rejected = db.query(DiscoveredStoreModel).filter(DiscoveredStoreModel.status == "rejected").count()
+    avg_trust = db.query(func.avg(DiscoveredStoreModel.trust_score)).scalar() or 0
+    avg_ra = db.query(func.avg(DiscoveredStoreModel.reclame_aqui_score)).scalar() or 0
+
+    return {
+        "total_discovered": total,
+        "pending_approval": pending,
+        "approved": approved,
+        "rejected": rejected,
+        "average_trust_score": round(float(avg_trust), 1),
+        "average_reclame_aqui": round(float(avg_ra), 1),
+    }
+
+
+@app.post("/api/agent/hunter/run")
+def run_hunter_cycle(db: Session = Depends(get_db)):
+    """Aciona uma rodada de varredura e auditoria do Store Hunter AI Agent."""
+    agent = StoreHunterAgent(db)
+    result = agent.run_discovery_cycle()
+    return result
+
+
+@app.post("/api/agent/hunter/stores/{store_id}/approve")
+def approve_hunter_store(store_id: int, db: Session = Depends(get_db)):
+    """Aprova uma loja descoberta e a integra automaticamente ao catálogo do Só Promo Boa."""
+    agent = StoreHunterAgent(db)
+    result = agent.approve_store(store_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
+@app.post("/api/agent/hunter/stores/{store_id}/reject")
+def reject_hunter_store(store_id: int, db: Session = Depends(get_db)):
+    """Descarta a sugestão de inclusão de uma loja."""
+    agent = StoreHunterAgent(db)
+    result = agent.reject_store(store_id)
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("message"))
+    return result
+
+
+@app.post("/api/agent/hunter/audit")
+def audit_custom_url(req: AuditUrlRequest, db: Session = Depends(get_db)):
+    """Submete uma URL arbitrária de loja para auditoria instantânea do agente."""
+    agent = StoreHunterAgent(db)
+    return agent.audit_custom_url(req.url, req.store_name)
+

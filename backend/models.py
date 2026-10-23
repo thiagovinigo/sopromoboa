@@ -113,3 +113,33 @@ class ClickModel(Base):
     source = Column(String, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
     referrer = Column(String, nullable=True)
+
+
+class DiscoveredStoreModel(Base):
+    """Lojas auditadas e descobertas pelo Store Hunter AI Agent."""
+    __tablename__ = "discovered_stores"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    domain = Column(String, nullable=False)
+    official_url = Column(Text, nullable=False)
+    logo_url = Column(Text, nullable=True)
+    category = Column(String, default="Geral")
+    
+    # Reputação & Avaliações
+    reclame_aqui_score = Column(Float, nullable=True) # Ex: 8.8
+    reclame_aqui_badge = Column(String, nullable=True) # RA1000, Ótimo, Bom
+    reclame_aqui_resolved_rate = Column(Float, nullable=True) # Ex: 92.5%
+    trust_score = Column(Integer, default=85) # Score 0-100
+    
+    # Afiliação & Monetização
+    affiliate_network = Column(String, nullable=True) # Lomadee, Awin, Direto
+    estimated_commission = Column(String, nullable=True) # Ex: "Até 8%"
+    affiliate_program_url = Column(Text, nullable=True)
+    
+    # Status
+    status = Column(String, default="pending", index=True) # pending, approved, rejected
+    discovered_reason = Column(Text, nullable=True)
+    discovered_at = Column(DateTime, default=datetime.datetime.utcnow)
+    reviewed_at = Column(DateTime, nullable=True)
