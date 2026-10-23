@@ -111,6 +111,8 @@ export default function AdminPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [isFeatured, setIsFeatured] = useState(true);
+  const [isLightningDeal, setIsLightningDeal] = useState(true);
+  const [autoFilledNotice, setAutoFilledNotice] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
 
@@ -323,6 +325,57 @@ export default function AdminPage() {
     }
   };
 
+  const handleAutoFillFromUrl = (rawUrl: string) => {
+    setUrl(rawUrl);
+    if (!rawUrl) return;
+
+    if (rawUrl.includes("amazon.com.br")) {
+      setSource("Amazon");
+      const asinMatch = rawUrl.match(/\/(?:dp|gp\/product|d)\/([A-Z0-9]{10})/i);
+      const asin = asinMatch ? asinMatch[1] : null;
+
+      if (asin) {
+        setImageUrl(`https://m.media-amazon.com/images/P/${asin}.01._SCLZZZZZZZ_SX500_.jpg`);
+      }
+
+      const slugMatch = rawUrl.match(/amazon\.com\.br\/([^/?#]+)\/dp\//i);
+      if (slugMatch) {
+        const decoded = decodeURIComponent(slugMatch[1]).replace(/-/g, " ");
+        if (decoded.length > 3 && !decoded.startsWith("dp")) {
+          setTitle(decoded);
+          const lower = decoded.toLowerCase();
+          if (lower.includes("iphone") || lower.includes("celular") || lower.includes("galaxy")) {
+            setCategory("smartphones");
+          } else if (lower.includes("creatina") || lower.includes("whey") || lower.includes("suplemento")) {
+            setCategory("saude");
+          } else if (lower.includes("air fryer") || lower.includes("panela") || lower.includes("cafeteira") || lower.includes("aspirador")) {
+            setCategory("eletrodomesticos");
+          } else if (lower.includes("fire tv") || lower.includes("echo") || lower.includes("alexa") || lower.includes("tv")) {
+            setCategory("eletronicos");
+          } else if (lower.includes("notebook") || lower.includes("monitor") || lower.includes("ssd") || lower.includes("mouse")) {
+            setCategory("informatica");
+          } else if (lower.includes("playstation") || lower.includes("ps5") || lower.includes("xbox") || lower.includes("nintendo")) {
+            setCategory("games");
+          } else if (lower.includes("kindle") || lower.includes("livro")) {
+            setCategory("livros");
+          }
+        }
+      }
+
+      setIsLightningDeal(true);
+      setAutoFilledNotice("⚡ Link da Amazon analisado! Título, imagem e tag 'thiagovinigo-20' preparados automaticamente.");
+      setTimeout(() => setAutoFilledNotice(null), 8000);
+    } else if (rawUrl.includes("magazineluiza.com.br")) {
+      setSource("Magazine Luiza");
+    } else if (rawUrl.includes("mercadolivre.com.br")) {
+      setSource("Mercado Livre");
+    } else if (rawUrl.includes("kabum.com.br")) {
+      setSource("KaBuM!");
+    } else if (rawUrl.includes("shopee.com.br")) {
+      setSource("Shopee");
+    }
+  };
+
   const handlePublishDeal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !url.trim() || !price) return;
@@ -339,6 +392,7 @@ export default function AdminPage() {
         category: category,
         coupon_code: couponCode.trim() || undefined,
         is_featured: isFeatured ? 1 : 0,
+        is_lightning_deal: isLightningDeal ? 1 : 0,
       });
 
       if (res) {
@@ -794,23 +848,46 @@ export default function AdminPage() {
               <Plus className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Publicar Anúncio com Nosso Link Afiliado</h2>
-              <p className="text-xs text-gray-400">A tag do parceiro configurada será injetada automaticamente</p>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>Publicar Anúncio com Nosso Link Afiliado</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  ⚡ Auto-Tag thiagovinigo-20
+                </span>
+              </h2>
+              <p className="text-xs text-gray-400">Cole o link da Amazon ou de parceiros. Título e imagem são preenchidos automaticamente!</p>
             </div>
           </div>
+
+          {/* Dica Expressa de Cadastrar Oferta Relâmpago */}
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+            <div className="flex items-center gap-2 text-amber-300 text-xs font-bold">
+              <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span>Método Rápido: Cadastrar uma Oferta Relâmpago da Amazon</span>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Viu uma super promoção na Amazon? Copie o link do produto no navegador e cole no campo abaixo. O sistema detecta o nome do produto, busca a foto oficial e garante que a sua tag de comissão <strong>thiagovinigo-20</strong> seja aplicada na hora!
+            </p>
+          </div>
+
+          {autoFilledNotice && (
+            <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span>{autoFilledNotice}</span>
+            </div>
+          )}
 
           <form onSubmit={handlePublishDeal} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">
-                Link do Produto na Loja (Amazon, Magalu, Mercado Livre, etc.) *
+                Link do Produto na Loja (Amazon, Magalu, Mercado Livre, KaBuM, etc.) *
               </label>
               <input
                 type="url"
                 required
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.amazon.com.br/dp/..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500"
+                onChange={(e) => handleAutoFillFromUrl(e.target.value)}
+                placeholder="Cole o link da Amazon aqui (ex: https://www.amazon.com.br/dp/B0B5PZ4MQ9...)"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-amber-400 transition-colors"
               />
             </div>
 
@@ -823,7 +900,7 @@ export default function AdminPage() {
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex: Console PlayStation 5 Slim 1TB + 2 Jogos"
+                placeholder="Ex: Fire TV Stick HD com Controle Remoto por Voz com Alexa"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500"
               />
             </div>
@@ -839,8 +916,8 @@ export default function AdminPage() {
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="Ex: 3199.00"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  placeholder="Ex: 249.00"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500 font-bold text-emerald-400"
                 />
               </div>
 
@@ -853,8 +930,8 @@ export default function AdminPage() {
                   step="0.01"
                   value={listPrice}
                   onChange={(e) => setListPrice(e.target.value)}
-                  placeholder="Ex: 3799.00"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  placeholder="Ex: 349.00"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-sm focus:outline-none focus:border-emerald-500 text-gray-400"
                 />
               </div>
             </div>
@@ -867,7 +944,7 @@ export default function AdminPage() {
                   onChange={(e) => setSource(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs font-semibold focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="Amazon">Amazon Brasil</option>
+                  <option value="Amazon">Amazon Brasil (thiagovinigo-20)</option>
                   <option value="Mercado Livre">Mercado Livre</option>
                   <option value="Magazine Luiza">Magazine Luiza</option>
                   <option value="KaBuM!">KaBuM!</option>
@@ -876,18 +953,21 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Categoria</label>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Categoria (Nicho)</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs font-semibold focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="smartphones">Smartphones</option>
-                  <option value="informatica">Informática</option>
-                  <option value="eletronicos">Eletrônicos</option>
-                  <option value="games">Games</option>
-                  <option value="eletrodomesticos">Eletrodomésticos</option>
-                  <option value="casa">Casa & Cozinha</option>
+                  <option value="eletronicos">📺 Eletrônicos & Alexa</option>
+                  <option value="smartphones">📱 Smartphones & Apple</option>
+                  <option value="saude">💊 Saúde & Suplementos (Creatina / Whey)</option>
+                  <option value="eletrodomesticos">🍳 Eletrodomésticos & Air Fryer</option>
+                  <option value="informatica">💻 Informática & Notebooks</option>
+                  <option value="perifericos">🎧 Periféricos & Áudio</option>
+                  <option value="games">🎮 Games & Consoles</option>
+                  <option value="livros">📚 Livros & Kindle</option>
+                  <option value="casa">🏠 Casa & Cozinha</option>
                 </select>
               </div>
             </div>
@@ -910,23 +990,39 @@ export default function AdminPage() {
                   type="text"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="Ex: PROMO10"
+                  placeholder="Ex: PRIME20"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-gray-900 border border-gray-700 text-white text-xs focus:outline-none focus:border-emerald-500 uppercase"
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="isFeatured"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="w-4 h-4 rounded text-emerald-600 bg-gray-900 border-gray-700"
-              />
-              <label htmlFor="isFeatured" className="text-xs text-gray-300 font-semibold cursor-pointer">
-                Destacar anúncio no topo da vitrine com selo de recomendação
-              </label>
+            <div className="space-y-2 pt-1 border-t border-gray-800">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isLightningDeal"
+                  checked={isLightningDeal}
+                  onChange={(e) => setIsLightningDeal(e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-500 bg-gray-900 border-gray-700 focus:ring-amber-500"
+                />
+                <label htmlFor="isLightningDeal" className="text-xs text-amber-300 font-bold cursor-pointer flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  Cadastrar como Oferta Relâmpago (destaque na página /ofertas-relampago e selo dourado)
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isFeatured"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 bg-gray-900 border-gray-700"
+                />
+                <label htmlFor="isFeatured" className="text-xs text-gray-300 font-semibold cursor-pointer">
+                  Destacar no topo da vitrine da página inicial
+                </label>
+              </div>
             </div>
 
             {publishSuccess && (

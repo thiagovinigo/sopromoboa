@@ -32,6 +32,7 @@ class ProductModel(Base):
     free_shipping = Column(Integer, default=0) # 1 = frete grátis informado
     is_affiliate_deal = Column(Integer, default=0, index=True) # 1 = anúncio cadastrado no nosso painel de afiliados
     is_featured = Column(Integer, default=0, index=True) # 1 = destaque na vitrine
+    is_lightning_deal = Column(Integer, default=0, index=True) # 1 = oferta relâmpago detectada por robô ou cadastrada
     clicks_count = Column(Integer, default=0) # total de cliques comissionados gerados
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

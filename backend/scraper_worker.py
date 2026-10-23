@@ -133,6 +133,8 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                     list_price=item.get("list_price") or db_prod.list_price,
                     previous_price=db_prod.previous_price
                 )
+                if db_prod.discount_percent >= 25.0:
+                    db_prod.is_lightning_deal = 1
 
                 # Atualiza metadados
                 db_prod.title = item["title"]
@@ -149,6 +151,7 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                 stats["updated"] += 1
             else:
                 # Novo produto descoberto
+                is_lightning = 1 if item["discount_percent"] >= 25.0 else 0
                 new_prod = ProductModel(
                     id=product_id,
                     title=item["title"],
@@ -170,6 +173,7 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                     review_count=item.get("review_count", 0),
                     coupon_code=item.get("coupon_code"),
                     free_shipping=item.get("free_shipping", 0),
+                    is_lightning_deal=is_lightning,
                     created_at=now,
                     last_updated=now,
                     price_changed_at=now,

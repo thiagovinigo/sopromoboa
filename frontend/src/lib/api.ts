@@ -25,6 +25,7 @@ export interface Deal {
   is_all_time_low: boolean;
   is_affiliate_deal?: number;
   is_featured?: number;
+  is_lightning_deal?: number;
   clicks_count?: number;
   last_updated: string;
 }
@@ -185,6 +186,7 @@ export async function createAdminDeal(data: {
   brand?: string;
   coupon_code?: string;
   is_featured?: number;
+  is_lightning_deal?: number;
   free_shipping?: number;
 }): Promise<Deal | null> {
   try {
@@ -450,6 +452,76 @@ export async function authenticateAdmin(password: string): Promise<{ success: bo
     }
     return { success: false, message: "Senha incorreta. Acesso não autorizado." };
   }
+}
+
+export async function fetchLightningDeals(params: {
+  q?: string;
+  category?: string;
+  min_discount?: number;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: Deal[]; total: number }> {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.category && params.category !== "todas") query.set("category", params.category);
+  if (params.min_discount) query.set("min_discount", String(params.min_discount));
+  if (params.sort) query.set("sort", params.sort);
+  query.set("limit", String(params.limit || 24));
+  query.set("offset", String(params.offset || 0));
+
+  try {
+    const res = await fetch(`${API_BASE}/api/deals/lightning?${query.toString()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Falha ao carregar ofertas relâmpago");
+    const total = parseInt(res.headers.get("X-Total-Count") || "0", 10);
+    const items = await res.json();
+    return { items, total };
+  } catch (err) {
+    console.error("Erro ao buscar ofertas relâmpago:", err);
+    return { items: [], total: 0 };
+  }
+}
+
+export async function triggerLightningScan(): Promise<{
+  success: boolean;
+  message: string;
+  total_active_lightning: number;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/api/deals/lightning/scan`, { method: "POST" });
+    if (!res.ok) throw new Error("Falha ao acionar robô");
+    return await res.json();
+  } catch (err) {
+    console.error("Erro ao disparar varredura de ofertas relâmpago:", err);
+    return {
+      success: false,
+      message: "Erro ao comunicar com o robô de ofertas relâmpago",
+      total_active_lightning: 0,
+    };
+  }
+}
+
+export async function quickImportDeal(payload: {
+  url: string;
+  custom_title?: string;
+  custom_price?: number;
+  custom_list_price?: number;
+  image_url?: string;
+  category?: string;
+  coupon_code?: string;
+  is_lightning?: boolean;
+  is_featured?: boolean;
+}): Promise<Deal> {
+  const res = await fetch(`${API_BASE}/api/admin/quick-import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || "Falha ao importar anúncio");
+  }
+  return await res.json();
 }
 
 

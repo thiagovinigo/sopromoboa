@@ -77,6 +77,7 @@ class DealOut(BaseModel):
     is_all_time_low: bool = False
     is_affiliate_deal: int = 0
     is_featured: int = 0
+    is_lightning_deal: int = 0
     clicks_count: int = 0
     last_updated: datetime
 
@@ -104,7 +105,20 @@ class AdminDealCreate(BaseModel):
     brand: Optional[str] = None
     coupon_code: Optional[str] = None
     is_featured: Optional[int] = 0
+    is_lightning_deal: Optional[int] = 0
     free_shipping: Optional[int] = 1
+
+
+class QuickImportRequest(BaseModel):
+    url: str
+    category: Optional[str] = None
+    custom_title: Optional[str] = None
+    custom_price: Optional[float] = None
+    custom_list_price: Optional[float] = None
+    image_url: Optional[str] = None
+    coupon_code: Optional[str] = None
+    is_lightning: Optional[bool] = True
+    is_featured: Optional[bool] = True
 
 
 class AlertCreate(BaseModel):
@@ -438,6 +452,79 @@ def list_deals(
         out.append(data)
 
     return out
+
+
+@app.get("/api/deals/lightning", response_model=List[DealOut])
+def list_lightning_deals(
+    response: Response,
+    q: Optional[str] = Query(None, description="Busca por termo ou marca"),
+    category: Optional[str] = Query(None, description="Filtrar por nicho"),
+    min_discount: Optional[float] = Query(None, description="Desconto mínimo"),
+    sort: str = Query("discount_desc", description="discount_desc | recent | price_asc | price_desc"),
+    limit: int = Query(24, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """Retorna ofertas relâmpago detectadas por robôs ou cadastradas com super descontos."""
+    query = db.query(ProductModel).filter(
+        ProductModel.is_available == 1,
+        or_(ProductModel.is_lightning_deal == 1, ProductModel.discount_percent >= 25.0)
+    )
+
+    if q:
+        query = query.filter(ProductModel.title.ilike(f"%{q}%"))
+    if category and category != "todas":
+        query = query.filter(ProductModel.category == category)
+    if min_discount:
+        query = query.filter(ProductModel.discount_percent >= min_discount)
+
+    total_count = query.count()
+    response.headers["X-Total-Count"] = str(total_count)
+
+    if sort == "discount_desc":
+        query = query.order_by(ProductModel.discount_percent.desc())
+    elif sort == "price_asc":
+        query = query.order_by(ProductModel.price.asc())
+    elif sort == "price_desc":
+        query = query.order_by(ProductModel.price.desc())
+    else:
+        query = query.order_by(ProductModel.last_updated.desc())
+
+    items = query.offset(offset).limit(limit).all()
+
+    out = []
+    for item in items:
+        data = DealOut.model_validate(item)
+        data.is_all_time_low = is_all_time_low(item.price, item.lowest_historic_price)
+        data.is_lightning_deal = 1
+        out.append(data)
+
+    return out
+
+
+@app.post("/api/deals/lightning/scan")
+def trigger_lightning_scan(db: Session = Depends(get_db)):
+    """Robô varredor de ofertas relâmpago: audita o catálogo e promove itens com super desconto."""
+    now = datetime.utcnow()
+    # 1. Marca produtos com desconto >= 25%
+    db.query(ProductModel).filter(ProductModel.discount_percent >= 25.0).update(
+        {ProductModel.is_lightning_deal: 1}, synchronize_session=False
+    )
+    # 2. Assegura que produtos emblemáticos das marcas mais procuradas estejam marcados
+    flagship_terms = ["fire tv", "echo", "kindle", "creatina", "whey", "air fryer", "iphone", "galaxy s", "jbl"]
+    for term in flagship_terms:
+        db.query(ProductModel).filter(ProductModel.title.ilike(f"%{term}%"), ProductModel.discount_percent >= 15.0).update(
+            {ProductModel.is_lightning_deal: 1}, synchronize_session=False
+        )
+
+    db.commit()
+    total_lightning = db.query(ProductModel).filter(ProductModel.is_lightning_deal == 1, ProductModel.is_available == 1).count()
+    return {
+        "success": True,
+        "message": f"Robôs de Ofertas Relâmpago finalizaram a auditoria. {total_lightning} ofertas ativas!",
+        "total_active_lightning": total_lightning,
+        "scanned_at": now.isoformat()
+    }
 
 
 @app.get("/api/deals/{product_id}", response_model=DealDetailOut)
@@ -1030,6 +1117,7 @@ def create_admin_affiliate_deal(deal_in: AdminDealCreate, db: Session = Depends(
         free_shipping=deal_in.free_shipping or 0,
         is_affiliate_deal=1,
         is_featured=deal_in.is_featured or 0,
+        is_lightning_deal=deal_in.is_lightning_deal or 0,
         rating=5.0,
         review_count=0,
         clicks_count=0,
@@ -1039,6 +1127,88 @@ def create_admin_affiliate_deal(deal_in: AdminDealCreate, db: Session = Depends(
     )
     db.merge(new_prod)
     db.add(PriceHistoryModel(product_id=deal_id, price=deal_in.price, seen_at=now))
+    db.commit()
+
+    item = DealOut.model_validate(new_prod)
+    item.is_all_time_low = True
+    return item
+
+
+@app.post("/api/admin/quick-import", response_model=DealOut)
+def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
+    """Importador expresso: analisa URL (Amazon ou qualquer loja), injeta tag de afiliado e cadastra direto."""
+    now = datetime.utcnow()
+    raw_url = req.url.strip()
+    store = detect_store_from_url(raw_url).capitalize()
+    store_slug = store.lower()
+
+    extracted_title = ""
+    asin = None
+    extracted_image = req.image_url or ""
+
+    if "amazon.com.br" in raw_url:
+        store = "Amazon"
+        store_slug = "amazon"
+        asin_match = re.search(r"/(?:dp|gp/product|d)/([A-Z0-9]{10})", raw_url)
+        if asin_match:
+            asin = asin_match.group(1)
+            if not extracted_image:
+                extracted_image = f"https://m.media-amazon.com/images/P/{asin}.01._SCLZZZZZZZ_SX500_.jpg"
+
+        slug_match = re.search(r"amazon\.com\.br/([^/?#]+)/dp/", raw_url)
+        if slug_match:
+            slug_raw = urllib.parse.unquote(slug_match.group(1)).replace("-", " ")
+            if len(slug_raw) > 3 and not slug_raw.startswith("dp"):
+                extracted_title = clean_title(slug_raw)
+
+    title = req.custom_title or extracted_title or f"Super Oferta {store}"
+    title = clean_title(title)
+    cat = req.category or detect_category(title)
+    brand = detect_brand(title)
+
+    # Injeta a tag de afiliado configurada para a loja
+    program = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == store_slug).first()
+    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else None)
+    affiliate_url = build_affiliate_url(raw_url, store_slug=store_slug, custom_tag=custom_tag)
+
+    price = req.custom_price if (req.custom_price and req.custom_price > 0) else 99.0
+    list_price = req.custom_list_price
+    discount = calculate_discount_percent(price, list_price=list_price)
+    if discount <= 0 and list_price and list_price > price:
+        discount = round(((list_price - price) / list_price) * 100, 1)
+
+    deal_id = f"quick_{asin or hashlib.md5(raw_url.encode('utf-8')).hexdigest()[:10]}"
+
+    new_prod = ProductModel(
+        id=deal_id,
+        title=title,
+        price=price,
+        list_price=list_price,
+        previous_price=list_price if (list_price and list_price > price) else None,
+        lowest_historic_price=price,
+        price_dropped=1 if (list_price and list_price > price) else 0,
+        discount_percent=discount,
+        brand=brand,
+        category=cat,
+        url=raw_url,
+        affiliate_url=affiliate_url,
+        source=store,
+        image_url=extracted_image,
+        is_available=1,
+        coupon_code=req.coupon_code,
+        free_shipping=1,
+        is_affiliate_deal=1,
+        is_featured=1 if req.is_featured else 0,
+        is_lightning_deal=1 if req.is_lightning else 0,
+        rating=4.9,
+        review_count=85,
+        clicks_count=0,
+        created_at=now,
+        last_updated=now,
+        price_changed_at=now,
+    )
+    db.merge(new_prod)
+    db.add(PriceHistoryModel(product_id=deal_id, price=price, seen_at=now))
     db.commit()
 
     item = DealOut.model_validate(new_prod)

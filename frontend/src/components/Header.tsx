@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Flame, Link2, Sparkles, Store, Bot } from "lucide-react";
+import { Flame, Link2, Sparkles, Store, Bot, Zap } from "lucide-react";
 
 export default function Header() {
   return (
@@ -25,17 +25,24 @@ export default function Header() {
           </Link>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1.5">
+            <Link
+              href="/ofertas-relampago"
+              className="text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm shadow-amber-500/10"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              Ofertas Relâmpago
+            </Link>
             <Link
               href="/"
-              className="text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/[0.05] px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+              className="text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/[0.05] px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-gray-400" />
               Todas as Ofertas
             </Link>
             <Link
               href="/radar"
-              className="text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
             >
               <Flame className="w-3.5 h-3.5 text-rose-500" />
               Radar de Quedas
