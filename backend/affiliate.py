@@ -9,9 +9,9 @@ from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from typing import Optional, Dict, Any
 
 DEFAULT_TAGS = {
-    "amazon": {"param": "tag", "default": "sopromoboa-20"},
+    "amazon": {"param": "tag", "default": "thiagovinigo-20"},
     "magalu": {"param": "parceiro", "default": "sopromoboa"},
-    "mercadolivre": {"param": "matt_tool", "default": "sopromoboa_ml"},
+    "mercadolivre": {"param": "matt_tool", "default": "goth1115110"},
     "shopee": {"param": "af_siteid", "default": "sopromoboa_sp"},
     "kabum": {"param": "tag", "default": "sopromoboa"},
 }

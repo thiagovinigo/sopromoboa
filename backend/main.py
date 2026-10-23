@@ -786,6 +786,16 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
             else:
                 sep = "&" if "?" in target_url else "?"
                 target_url = f"{target_url}{sep}tag={amazon_tag}"
+        elif "mercadolivre.com" in target_url:
+            import re
+            ml_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "mercadolivre").first()
+            ml_tag = ml_prog.tracking_id if (ml_prog and ml_prog.tracking_id) else "goth1115110"
+            if "/sec/" not in target_url:
+                if "matt_tool=" in target_url:
+                    target_url = re.sub(r"matt_tool=[^&]+", f"matt_tool={ml_tag}", target_url)
+                else:
+                    sep = "&" if "?" in target_url else "?"
+                    target_url = f"{target_url}{sep}matt_tool={ml_tag}"
 
     return RedirectResponse(url=target_url, status_code=307)
 
@@ -1164,6 +1174,15 @@ def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
             if len(slug_raw) > 3 and not slug_raw.startswith("dp"):
                 extracted_title = clean_title(slug_raw)
 
+    elif "mercadolivre.com" in raw_url:
+        store = "Mercado Livre"
+        store_slug = "mercadolivre"
+        ml_match = re.search(r"mercadolivre\.com\.br/([^\?#]+)", raw_url)
+        if ml_match:
+            slug_raw = urllib.parse.unquote(ml_match.group(1)).split("/")[0].replace("-", " ")
+            if len(slug_raw) > 3 and not slug_raw.startswith("p/"):
+                extracted_title = clean_title(slug_raw)
+
     title = req.custom_title or extracted_title or f"Super Oferta {store}"
     title = clean_title(title)
     cat = req.category or detect_category(title)
@@ -1171,7 +1190,7 @@ def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
 
     # Injeta a tag de afiliado configurada para a loja
     program = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == store_slug).first()
-    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else None)
+    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else ("goth1115110" if store_slug == "mercadolivre" else None))
     affiliate_url = build_affiliate_url(raw_url, store_slug=store_slug, custom_tag=custom_tag)
 
     price = req.custom_price if (req.custom_price and req.custom_price > 0) else 99.0

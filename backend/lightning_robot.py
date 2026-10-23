@@ -33,6 +33,7 @@ robot_status = {
 }
 
 AMAZON_STORE_ID = "thiagovinigo-20"
+ML_AFFILIATE_TAG = "goth1115110"
 
 
 def enforce_amazon_affiliate_tag(db):
@@ -52,6 +53,26 @@ def enforce_amazon_affiliate_tag(db):
         db.commit()
     except Exception as e:
         print(f"[Robô Autônomo] Erro ao injetar tags Amazon: {e}")
+        db.rollback()
+
+
+def enforce_ml_affiliate_tag(db):
+    """Garante que todos os produtos do Mercado Livre no banco usem a tag oficial goth1115110."""
+    try:
+        ml_prods = db.query(ProductModel).filter(
+            ProductModel.source.ilike("%mercado%")
+        ).all()
+        for p in ml_prods:
+            target = p.affiliate_url or p.url
+            if target and "mercadolivre.com" in target and "/sec/" not in target:
+                if "matt_tool=" in target:
+                    p.affiliate_url = re.sub(r"matt_tool=[^&]+", f"matt_tool={ML_AFFILIATE_TAG}", target)
+                else:
+                    sep = "&" if "?" in target else "?"
+                    p.affiliate_url = f"{target}{sep}matt_tool={ML_AFFILIATE_TAG}"
+        db.commit()
+    except Exception as e:
+        print(f"[Robô Autônomo] Erro ao injetar tags Mercado Livre: {e}")
         db.rollback()
 
 
@@ -152,8 +173,9 @@ def run_lightning_robot_cycle() -> Dict[str, Any]:
         # 1. Executa scrapers para ler novidades da Amazon, Gatry e outras lojas
         worker_stats = run_worker_once()
 
-        # 2. Injeta tags de afiliado da Amazon
+        # 2. Injeta tags de afiliado da Amazon e Mercado Livre
         enforce_amazon_affiliate_tag(db)
+        enforce_ml_affiliate_tag(db)
 
         # 3. Exclui da vitrine itens que perderam o desconto ou expiraram
         pruned = prune_expired_lightning_deals(db)
