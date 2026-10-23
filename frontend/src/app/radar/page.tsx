@@ -24,19 +24,18 @@ export default function RadarPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header do Radar */}
-      <div className="relative overflow-hidden rounded-3xl p-8 border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-gray-900/80 to-gray-900/90 shadow-2xl">
-        <div className="max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-black uppercase tracking-wider">
-            <Flame className="w-4 h-4 fill-rose-500 text-rose-500 animate-pulse" />
+      {/* Header do Radar - Limpo e Direto */}
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-white/[0.07] bg-[#0d131f] shadow-lg">
+        <div className="max-w-2xl space-y-2.5">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
+            <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
             Radar de Quedas Recentes
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Itens Que Baixaram de Preço <br />
-            <span className="text-rose-500">Nas Últimas 24h a 7 Dias</span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            Produtos que baixaram de preço <span className="text-rose-500">recentemente</span>
           </h1>
-          <p className="text-sm text-gray-300">
-            Nossos workers comparam cada preço contra o histórico armazenado. Esta lista exibe apenas produtos com reduções reais de preço superiores a 2% e livres de falsas oscilações.
+          <p className="text-xs sm:text-sm text-gray-400">
+            Comparamos cada valor contra o histórico apurado. Esta lista exibe apenas produtos com reduções legítimas nas últimas 24h a 7 dias.
           </p>
         </div>
       </div>

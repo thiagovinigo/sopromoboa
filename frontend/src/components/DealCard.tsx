@@ -99,37 +99,30 @@ export default function DealCard({
   const CategoryIconComponent = getCategoryIcon(deal.category);
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 group relative">
-      {/* Badges superiores - isolados com pointer-events-none e limite de largura */}
-      <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap gap-1.5 items-center pointer-events-none max-w-[70%]">
+    <div className="glass-card rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-white/20 group relative bg-[#0d131f] border border-white/[0.07]">
+      {/* Badges superiores */}
+      <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap gap-1.5 items-center pointer-events-none">
         {deal.discount_percent > 0 && (
-          <span className="px-2 py-0.5 text-xs font-black text-white flame-gradient rounded-lg shadow-md shadow-rose-600/30 flex items-center gap-1">
-            <Zap className="w-3 h-3 fill-white" />
+          <span className="px-2 py-0.5 text-xs font-bold text-white bg-rose-600 rounded-md shadow-sm flex items-center gap-0.5">
             -{deal.discount_percent}%
           </span>
         )}
         {deal.is_all_time_low && (
-          <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 bg-emerald-950/90 backdrop-blur-md border border-emerald-500/40 rounded-md flex items-center gap-1 shadow-sm">
-            <Flame className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+          <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-500/30 rounded-md">
             Menor Preço
-          </span>
-        )}
-        {deal.is_affiliate_deal === 1 && (
-          <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-950/90 backdrop-blur-md border border-purple-500/40 rounded-md shadow-sm flex items-center gap-1">
-            <Sparkles className="w-2.5 h-2.5 text-purple-400" /> Destaque
           </span>
         )}
       </div>
 
-      {/* Ações superiores direitas: Favoritar e Alerta */}
+      {/* Ações superiores: Favoritar */}
       <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
         <button
           onClick={handleToggleFavorite}
           title={isFav ? "Remover dos favoritos" : "Salvar nos favoritos"}
           className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
             isFav
-              ? "bg-rose-500 text-white shadow-lg shadow-rose-500/40 scale-105"
-              : "bg-gray-900/80 text-gray-400 hover:text-rose-400 hover:bg-rose-500/20 border border-gray-700"
+              ? "bg-rose-600 text-white shadow-md scale-105"
+              : "bg-black/40 text-gray-400 hover:text-rose-400 hover:bg-black/60 border border-white/10"
           }`}
         >
           <svg
@@ -148,17 +141,17 @@ export default function DealCard({
 
         <Link
           href={`/busca-personalizada?q=${encodeURIComponent(deal.title)}`}
-          title="Workers: comparar preços em todas as lojas"
-          className="p-1.5 rounded-full bg-gray-900/80 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 border border-gray-700 hover:border-cyan-500/40 transition-colors"
+          title="Comparar preços em todas as lojas"
+          className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-gray-400 hover:text-cyan-400 border border-white/10 transition-colors"
         >
           <Bot className="w-3.5 h-3.5" />
         </Link>
       </div>
 
-      {/* Imagem do Produto com Fallback Blindado (sem texto quebrado sobreposto) */}
+      {/* Imagem do Produto */}
       <Link
         href={`/produto/${deal.id}`}
-        className="block relative pt-[72%] bg-gradient-to-b from-gray-900/90 to-gray-950/90 overflow-hidden"
+        className="block relative pt-[70%] bg-[#080d17] overflow-hidden"
       >
         {deal.image_url && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -171,11 +164,11 @@ export default function DealCard({
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center select-none bg-gradient-to-b from-gray-900/95 to-gray-950">
-            <div className="w-12 h-12 rounded-2xl bg-gray-800/80 border border-gray-700/60 flex items-center justify-center mb-1.5 shadow-inner group-hover:scale-110 transition-transform">
-              <CategoryIconComponent className="w-6 h-6 text-rose-500" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center select-none bg-[#080d17]">
+            <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-1.5">
+              <CategoryIconComponent className="w-5 h-5 text-gray-400" />
             </div>
-            <span className="text-[11px] font-black tracking-wider text-gray-300 uppercase">{deal.source}</span>
+            <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider">{deal.source}</span>
             <span className="text-[10px] text-gray-500 font-medium line-clamp-1 max-w-[85%] mt-0.5">
               {deal.brand || deal.category}
             </span>
@@ -188,11 +181,11 @@ export default function DealCard({
         <div>
           {/* Loja & Avaliação */}
           <div className="flex items-center justify-between text-xs mb-2">
-            <span className={`px-2 py-0.5 rounded-md font-semibold border ${getStoreBadgeColor(deal.source)}`}>
+            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold text-gray-300 bg-white/[0.04] border border-white/[0.07]">
               {deal.source}
             </span>
             {deal.rating ? (
-              <span className="flex items-center gap-1 text-amber-400 font-semibold text-xs">
+              <span className="flex items-center gap-1 text-amber-400 font-medium text-xs">
                 <Star className="w-3 h-3 fill-amber-400" />
                 {deal.rating} {deal.review_count > 0 && `(${deal.review_count})`}
               </span>
@@ -201,7 +194,7 @@ export default function DealCard({
             )}
           </div>
 
-          {/* Título com altura fixa de 2 linhas para garantir alinhamento perfeito */}
+          {/* Título com altura fixa de 2 linhas */}
           <Link href={`/produto/${deal.id}`}>
             <h3 className="font-semibold text-sm text-gray-100 hover:text-rose-400 line-clamp-2 h-10 transition-colors mb-2 leading-snug">
               {deal.title}
@@ -213,65 +206,64 @@ export default function DealCard({
             <div className="mb-2">
               <button
                 onClick={handleCopyCoupon}
-                className="w-full flex items-center justify-between px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-dashed border-emerald-500/40 text-emerald-400 text-xs font-bold hover:bg-emerald-500/20 transition-colors"
+                className="w-full flex items-center justify-between px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
               >
-                <span className="flex items-center gap-1">
-                  <Ticket className="w-3 h-3" /> Cupom: {deal.coupon_code}
+                <span className="flex items-center gap-1 truncate">
+                  <Ticket className="w-3 h-3 flex-shrink-0" /> Cupom: {deal.coupon_code}
                 </span>
-                <span className="text-[10px] uppercase font-semibold">
+                <span className="text-[10px] uppercase font-bold flex-shrink-0">
                   {copiedCoupon ? "Copiado!" : "Copiar"}
                 </span>
               </button>
             </div>
           )}
 
-          {/* Linha de Queda de Preço com altura fixa para evitar desníveis */}
-          <div className="h-5 mb-1 flex items-center">
+          {/* Preço Anterior / Queda */}
+          <div className="h-5 mb-0.5 flex items-center text-xs">
             {deal.previous_price && deal.previous_price > deal.price ? (
-              <div className="flex items-center gap-1 text-xs text-rose-400 font-bold">
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span>Caiu de <span className="line-through text-gray-400 font-normal">{formatBRL(deal.previous_price)}</span></span>
-              </div>
+              <span className="text-gray-400">
+                De <span className="line-through">{formatBRL(deal.previous_price)}</span>
+                <span className="text-rose-400 font-medium ml-1.5">↓ Caiu</span>
+              </span>
             ) : deal.list_price && deal.list_price > deal.price ? (
-              <div className="text-xs text-gray-400 line-through">
-                De: {formatBRL(deal.list_price)}
-              </div>
+              <span className="text-gray-400 line-through">
+                De {formatBRL(deal.list_price)}
+              </span>
             ) : (
-              <span className="text-[11px] text-gray-500">Preço verificado</span>
+              <span className="text-[11px] text-gray-500">Menor preço apurado</span>
             )}
           </div>
 
           {/* Preço Atual */}
-          <div className="flex items-baseline gap-2 mb-2">
+          <div className="flex items-baseline gap-1.5 mb-2">
             <span className="text-xl font-black text-white tracking-tight">
               {formatBRL(deal.price)}
             </span>
-            <span className="text-[11px] text-gray-400">à vista / Pix</span>
+            <span className="text-[11px] text-gray-400">à vista</span>
+            {deal.free_shipping === 1 && (
+              <span className="text-[10px] font-semibold text-emerald-400 ml-auto bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                Frete Grátis
+              </span>
+            )}
           </div>
-
-          {deal.free_shipping === 1 && (
-            <div className="inline-block text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full mb-3">
-              ✓ Frete Grátis
-            </div>
-          )}
         </div>
 
-        {/* Botões de Ação */}
-        <div className="grid grid-cols-2 gap-2 mt-auto pt-2 border-t border-gray-800/80">
-          <Link
-            href={`/produto/${deal.id}`}
-            className="text-xs font-semibold text-gray-300 hover:text-white bg-gray-800/80 hover:bg-gray-700/80 py-2 rounded-xl text-center transition-colors"
-          >
-            Histórico
-          </Link>
+        {/* Ação Principal: Botão Limpo e Alto Impacto */}
+        <div className="mt-3 pt-2.5 border-t border-white/[0.06] space-y-1.5">
           <a
             href={`${API_BASE}/r/${deal.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-bold text-white bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-600 py-2 rounded-xl flex items-center justify-center gap-1 shadow-md shadow-rose-600/20 transition-all hover:scale-[1.02]"
+            className="w-full text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm"
           >
-            Pegar <ExternalLink className="w-3 h-3" />
+            Ver na Loja <ExternalLink className="w-3.5 h-3.5" />
           </a>
+          <Link
+            href={`/produto/${deal.id}`}
+            className="block text-center text-[11px] text-gray-400 hover:text-gray-200 transition-colors py-0.5"
+          >
+            Ver histórico de preços →
+          </Link>
         </div>
       </div>
     </div>

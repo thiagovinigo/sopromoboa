@@ -95,77 +95,71 @@ export default function HomePage() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl p-8 sm:p-12 border border-gray-800 bg-gradient-to-b from-rose-950/20 via-gray-900/40 to-gray-900/80 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-96 h-96 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-3xl mx-auto text-center space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold uppercase tracking-wider">
+    <div className="space-y-6">
+      {/* Hero Section - Clean & Breathable */}
+      <section className="relative overflow-hidden rounded-3xl p-6 sm:p-10 border border-white/[0.07] bg-[#0d131f] shadow-lg">
+        <div className="max-w-2xl mx-auto text-center space-y-3.5 relative z-10">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold">
             <Flame className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-            Promoções com Quedas Reais de Preço
+            Radar de Quedas de Preço & Ofertas Reais
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
-            Chega de 'Metade do Dobro'. <br className="hidden sm:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-rose-500 to-amber-400">
-              Economia Real Comprovada.
-            </span>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            Economia real, <span className="text-rose-500">sem pegadinhas</span>.
           </h1>
 
-          <p className="text-gray-300 text-sm sm:text-base max-w-xl mx-auto">
-            Varremos continuamente grandes lojas como Amazon, Mercado Livre e Magazine Luiza para catalogar quedas de preço legítimas e avisar você.
+          <p className="text-gray-400 text-xs sm:text-sm max-w-lg mx-auto leading-relaxed">
+            Varremos continuamente grandes lojas como Amazon, Mercado Livre e Magalu para alertar apenas quedas de preço comprovadas.
           </p>
 
-          {/* Barra de Busca com Botão */}
-          <form onSubmit={handleSearchSubmit} className="pt-2 max-w-2xl mx-auto">
-            <div className="relative flex items-center shadow-2xl rounded-2xl bg-gray-900/90 border border-gray-700 focus-within:border-rose-500 transition-colors p-1.5">
-              <Search className="w-5 h-5 text-gray-400 ml-3" />
+          {/* Barra de Busca Flutuante e Limpa */}
+          <form onSubmit={handleSearchSubmit} className="pt-2 max-w-xl mx-auto">
+            <div className="relative flex items-center bg-[#080c14] border border-white/10 rounded-2xl p-1.5 shadow-inner focus-within:border-rose-500/60 transition-colors">
+              <Search className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Busque por produto, marca ou modelo (ex: iPhone, Monitor, Air Fryer)..."
-                className="w-full bg-transparent px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
+                placeholder="Busque por iPhone, Monitor, TV, Notebook..."
+                className="w-full bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none"
               />
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-600 shadow-md shadow-rose-600/30 transition-all flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl font-bold text-xs text-white bg-rose-600 hover:bg-rose-500 transition-colors flex-shrink-0 shadow-sm"
               >
                 Buscar
               </button>
             </div>
           </form>
 
-          {/* Badges de Garantia */}
-          <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs text-gray-400">
+          {/* Badges de Confiança */}
+          <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-[11px] text-gray-400">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> Histórico de Preços Auditado
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Histórico auditado
             </span>
             <span className="flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-400" /> Detecção de Quedas Recentes
+              <Zap className="w-3.5 h-3.5 text-amber-400" /> Quedas em tempo real
             </span>
             <span className="flex items-center gap-1.5">
-              <Store className="w-4 h-4 text-blue-400" /> Lojas Oficiais & Verificadas
+              <Store className="w-3.5 h-3.5 text-blue-400" /> Lojas oficiais
             </span>
           </div>
         </div>
       </section>
 
       {/* Barra de Filtros & Categorias */}
-      <section className="space-y-4">
+      <section className="space-y-3">
         {/* Categorias Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => {
               setActiveCategory("");
               setPage(0);
             }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
               activeCategory === ""
-                ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20"
-                : "bg-gray-800/80 text-gray-300 hover:bg-gray-700/80"
+                ? "bg-rose-600 text-white shadow-sm"
+                : "bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white border border-white/[0.06]"
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -178,27 +172,22 @@ export default function HomePage() {
                 setActiveCategory(c.slug);
                 setPage(0);
               }}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeCategory === c.slug
-                  ? "bg-rose-600 text-white shadow-lg shadow-rose-600/20"
-                  : "bg-gray-800/80 text-gray-300 hover:bg-gray-700/80"
+                  ? "bg-rose-600 text-white shadow-sm"
+                  : "bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] hover:text-white border border-white/[0.06]"
               }`}
             >
               {c.name}
-              {c.total_deals > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-black/40 text-gray-300">
-                  {c.total_deals}
-                </span>
-              )}
             </button>
           ))}
         </div>
 
-        {/* Lojas & Filtros de Ordenação */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-gray-900/60 p-3.5 rounded-2xl border border-gray-800">
+        {/* Lojas & Filtros Rápidos */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0d131f] p-3 rounded-2xl border border-white/[0.06]">
           {/* Lojas Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs font-semibold text-gray-400 flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            <span className="text-xs font-medium text-gray-400 flex items-center gap-1 mr-1">
               <Store className="w-3.5 h-3.5" /> Lojas:
             </span>
             <button
@@ -206,8 +195,8 @@ export default function HomePage() {
                 setActiveStore("");
                 setPage(0);
               }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium ${
-                activeStore === "" ? "bg-gray-700 text-white" : "text-gray-400 hover:text-white"
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                activeStore === "" ? "bg-white/[0.1] text-white" : "text-gray-400 hover:text-white"
               }`}
             >
               Todas
@@ -221,7 +210,7 @@ export default function HomePage() {
                 }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
                   activeStore.toLowerCase() === s.name.toLowerCase()
-                    ? "bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold"
+                    ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
@@ -231,24 +220,22 @@ export default function HomePage() {
           </div>
 
           {/* Filtros Rápidos: Quedas & Ordenação */}
-          <div className="flex items-center gap-3">
-            {/* Toggle de Apenas Quedas */}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 setOnlyDrops(!onlyDrops);
                 setPage(0);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all ${
                 onlyDrops
                   ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
-                  : "bg-gray-800/80 text-gray-400 border-gray-700 hover:text-white"
+                  : "bg-white/[0.04] text-gray-400 border-white/[0.06] hover:text-white"
               }`}
             >
               <TrendingDown className={`w-3.5 h-3.5 ${onlyDrops ? "text-rose-400" : ""}`} />
               Quedas Recentes
             </button>
 
-            {/* Select de Ordenação */}
             <div className="flex items-center gap-1 text-xs">
               <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400" />
               <select
@@ -257,7 +244,7 @@ export default function HomePage() {
                   setSort(e.target.value);
                   setPage(0);
                 }}
-                className="bg-gray-800 border border-gray-700 text-white text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-rose-500"
+                className="bg-[#080c14] border border-white/10 text-white text-xs font-medium rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-rose-500"
               >
                 <option value="recent">Mais Recentes</option>
                 <option value="drop_desc">Maior Queda de Preço</option>
