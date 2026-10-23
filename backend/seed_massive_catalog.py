@@ -369,10 +369,13 @@ def generate_perifericos_deals(count=510) -> List[Dict[str, Any]]:
     perifs = [
         ("LG", "Monitor Gamer LG UltraGear 24\" IPS 180Hz 1ms Full HD FreeSync DisplayPort", 799, 1099),
         ("LG", "Monitor Gamer LG UltraGear 27\" IPS 144Hz 1ms QHD (2560x1440) HDR10", 1499, 1999),
+        ("LG", "Monitor Gamer LG UltraGear 32\" QHD 165Hz 1ms HDR10 FreeSync 32GN600-B", 1599, 2199),
         ("AOC", "Monitor Gamer AOC Hero 24\" 144Hz 1ms IPS Ajuste de Altura G-Sync", 749, 999),
         ("Samsung", "Monitor Gamer Samsung Odyssey G3 24\" 144Hz 1ms Ajuste de Altura", 729, 969),
+        ("Samsung", "Monitor Gamer Curvo Samsung Odyssey G5 32\" WQHD 165Hz 1ms HDR10", 1699, 2399),
         ("Samsung", "Monitor Gamer Curvo Samsung Odyssey G5 34\" UltraWide WQHD 165Hz 1ms", 2399, 3199),
         ("Dell", "Monitor Profissional Dell 27\" 4K UHD USB-C Hub IPS sRGB 99% S2722QC", 2199, 2899),
+        ("Dell", "Monitor Profissional Dell 32\" 4K UHD Curvo S3221QS sRGB 99%", 2499, 3299),
         ("Logitech", "Mouse Gamer Sem Fio Logitech G305 Lightspeed Sensor HERO 12K", 189, 269),
         ("Logitech", "Mouse Gamer Logitech G502 HERO Sensor 25K RGB Pesos Ajustáveis", 249, 349),
         ("Logitech", "Mouse Gamer Sem Fio Logitech G PRO X Superlight 2 Lightspeed 60g", 749, 999),

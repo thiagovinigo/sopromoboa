@@ -178,6 +178,10 @@ def comparator_search(
     raw_q = q.strip()
     q_norm = raw_q.lower()
 
+    STOPWORDS = {"de", "da", "do", "dos", "das", "com", "para", "pra", "em", "no", "na", "o", "a", "os", "as", "e", "por", "ate", "até"}
+    UNIT_WORDS = {"polegadas", "polegada", "pol", "pols", "inches", "inch", "gb", "tb", "giga", "gigas", "mb", "hz", "w", "watts", "v", "volts"}
+    ACCESSORY_KEYWORDS = {"suporte", "braço", "braco", "articulado", "capa", "capinha", "pelicula", "película", "cabo", "adaptador", "carregador"}
+
     # 1. Dicionário de Aliases e Typos Frequentes
     COMMON_ALIASES = {
         "iphone5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
@@ -201,32 +205,62 @@ def comparator_search(
         target_query, did_you_mean_notice = COMMON_ALIASES[q_norm]
         did_you_mean = target_query
     else:
-        # Separa letras e números colados (ex: iphone15 -> iphone 15, rtx4060 -> rtx 4060)
-        target_query = re.sub(r"([a-zA-Z]{2,})(\d+)", r"\1 \2", raw_q)
+        # Separa aspas de polegadas e números colados (ex: 32" -> 32 ", 32pol -> 32 pol)
+        target_query = target_query.replace('"', ' " ').replace("'", " ' ")
+        target_query = re.sub(r"([a-zA-Z]{2,})(\d+)", r"\1 \2", target_query)
         target_query = re.sub(r"(\d+)([a-zA-Z]{2,})", r"\1 \2", target_query)
 
-    tokens = [t.lower() for t in re.split(r"\s+", target_query) if len(t) > 0]
+    # Identifica se o usuário quer explicitamente um acessório
+    user_wants_accessory = any(ak in q_norm for ak in ACCESSORY_KEYWORDS)
+
+    raw_tokens = [t.lower().strip() for t in re.split(r"[\s\-_/]+", target_query) if t.strip()]
+
+    # Separa tokens de busca eliminando stopwords e unidades de medida puras
+    clean_tokens = []
+    numeric_tokens = []
+    for t in raw_tokens:
+        if t in STOPWORDS or t in {'"', "'"}:
+            continue
+        if t in UNIT_WORDS or t.startswith("poleg") or t.startswith("pol."):
+            # Unidades de medida (ex: 'polegadas', 'polegads', 'pol') não devem ser termos obrigatórios no título
+            continue
+        if t.isdigit():
+            numeric_tokens.append(t)
+            clean_tokens.append(t)
+        else:
+            clean_tokens.append(t)
+
+    if not clean_tokens and raw_tokens:
+        clean_tokens = [t for t in raw_tokens if t not in STOPWORDS]
 
     # 2. Busca preliminar ampla no banco
     candidates_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
     
-    # Usa o token principal mais longo para filtrar no SQL
-    lead_token = next((t for t in tokens if len(t) > 2), tokens[0] if tokens else "")
+    # Usa o token de texto principal mais longo para filtrar no SQL
+    text_tokens = [t for t in clean_tokens if not t.isdigit() and len(t) > 2]
+    lead_token = text_tokens[0] if text_tokens else (clean_tokens[0] if clean_tokens else "")
     if lead_token:
         candidates_query = candidates_query.filter(ProductModel.title.ilike(f"%{lead_token}%"))
 
     all_candidates = candidates_query.all()
 
-    # 3. Filtragem rigorosa em memória respeitando limites de palavras para modelos numéricos
+    # 3. Filtragem rigorosa em memória
     matches = []
     for p in all_candidates:
         title_lower = p.title.lower()
+
+        # Se o usuário não pediu suporte/acessório, descarta suportes de monitor/braço articulado
+        if not user_wants_accessory:
+            if title_lower.startswith("suporte ") or "suporte articulado" in title_lower or "suporte de mesa" in title_lower or "suporte para monitor" in title_lower:
+                continue
+
         is_match = True
-        for t in tokens:
+        for t in clean_tokens:
             if t.isdigit():
-                # Para números de modelo (ex: '15', '14', '13'), exige palavra isolada
-                # para não dar match em capacidades de memória como '256GB' ou '512GB' ou '5G'
-                if not re.search(rf"\b{re.escape(t)}\b", title_lower):
+                # Para números de modelo ou dimensão (ex: '32', '24', '15'),
+                # aceita limites de palavras ou sufixo de unidade (" , ' , pol)
+                pattern = rf"\b{re.escape(t)}(\"|\'|pol|p|\b)"
+                if not re.search(pattern, title_lower):
                     is_match = False
                     break
             else:
