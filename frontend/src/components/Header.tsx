@@ -16,10 +16,10 @@ export default function Header() {
             </div>
             <div>
               <span className="text-xl font-black tracking-tight text-white flex items-center gap-1">
-                SÓ PROMO <span className="text-rose-500">BOA</span>
+                QUE<span className="text-rose-500">PROMO</span>
               </span>
               <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 block -mt-1">
-                Radar de Quedas de Preço
+                Radar de Quedas de Preço & Ofertas
               </span>
             </div>
           </Link>

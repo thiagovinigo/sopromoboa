@@ -83,7 +83,7 @@ export default function AlertModal({ deal, isOpen, onClose }: AlertModalProps) {
             <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
             <h4 className="font-bold text-white text-lg">Alerta Ativado com Sucesso!</h4>
             <p className="text-xs text-gray-400 max-w-xs mx-auto">
-              O radar do Só Promo Boa monitorará novas varreduras e sinalizará as promoções que atingirem sua meta.
+              O radar do Que Promo monitorará novas varreduras e sinalizará as promoções que atingirem sua meta.
             </p>
           </div>
         ) : (

@@ -130,7 +130,7 @@ export default function ProductDetailPage() {
                 <Store className="w-8 h-8 text-rose-500" />
               </div>
               <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">{deal.source}</span>
-              <span className="text-xs text-gray-400 mt-1">{deal.brand || "Só Promo Boa"}</span>
+              <span className="text-xs text-gray-400 mt-1">{deal.brand || "Que Promo"}</span>
             </div>
           )}
         </div>

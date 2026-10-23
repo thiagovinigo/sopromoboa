@@ -192,7 +192,7 @@ export default function PriceChart({ history, currentPrice, lowestPrice }: Price
       <div className="mt-3 flex items-center gap-2 text-xs text-gray-400 bg-gray-900/50 p-2.5 rounded-xl border border-gray-800">
         <ShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
         <span>
-          O Só Promo Boa verifica e congela o histórico a cada alteração para garantir que promoções como 'Metade do Dobro' não enganem os usuários.
+          O Que Promo verifica e congela o histórico a cada alteração para garantir que promoções como 'Metade do Dobro' não enganem os usuários.
         </span>
       </div>
     </div>

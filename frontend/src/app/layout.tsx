@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Só Promo Boa | Radar de Quedas de Preço & Ofertas Reais",
-  description: "Monitore promoções que realmente baixaram de preço no Brasil. Histórico real, comparador entre lojas, alertas de desconto e links de afiliados auditados.",
-  keywords: ["promoções", "descontos", "queda de preço", "radar de ofertas", "menor preço histórico", "ofertas amazon", "mercado livre", "magalu"],
+  title: "Que Promo | Radar de Quedas de Preço & Ofertas Reais",
+  description: "Monitore promoções que realmente baixaram de preço no Brasil. Histórico real, comparador entre lojas, alertas de desconto e links de afiliados auditados no quepromo.com.br.",
+  keywords: ["promoções", "descontos", "queda de preço", "radar de ofertas", "menor preço histórico", "ofertas amazon", "mercado livre", "magalu", "quepromo"],
 };
 
 export default function RootLayout({
@@ -37,8 +37,8 @@ export default function RootLayout({
                 <Flame className="w-5 h-5" />
               </div>
               <div>
-                <span className="font-bold text-white text-sm">Só Promo Boa</span>
-                <p className="text-[11px] text-gray-400">O radar oficial de promoções comprovadas e preços baixos.</p>
+                <span className="font-bold text-white text-sm">Que Promo</span>
+                <p className="text-[11px] text-gray-400">quepromo.com.br • O radar oficial de ofertas e preços baixos.</p>
               </div>
             </div>
 
