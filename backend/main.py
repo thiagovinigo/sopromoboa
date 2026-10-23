@@ -799,13 +799,14 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
         elif "shopee.com" in target_url or "shope.ee" in target_url:
             import re
             sp_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "shopee").first()
-            sp_tag = sp_prog.tracking_id if (sp_prog and sp_prog.tracking_id) else "quepromo_sp"
+            sp_tag = sp_prog.tracking_id if (sp_prog and sp_prog.tracking_id) else "an_18356121277"
             if "s.shopee.com.br" not in target_url and "shope.ee" not in target_url:
-                if "af_siteid=" in target_url:
-                    target_url = re.sub(r"af_siteid=[^&]+", f"af_siteid={sp_tag}", target_url)
+                if "mmp_pid=" in target_url:
+                    target_url = re.sub(r"mmp_pid=[^&]+", f"mmp_pid={sp_tag}", target_url)
+                    target_url = re.sub(r"utm_source=[^&]+", f"utm_source={sp_tag}", target_url)
                 else:
                     sep = "&" if "?" in target_url else "?"
-                    target_url = f"{target_url}{sep}af_siteid={sp_tag}&sub_id=quepromo"
+                    target_url = f"{target_url}{sep}utm_source={sp_tag}&mmp_pid={sp_tag}&utm_medium=affiliates"
 
     return RedirectResponse(url=target_url, status_code=307)
 
@@ -1204,7 +1205,7 @@ def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
 
     # Injeta a tag de afiliado configurada para a loja
     program = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == store_slug).first()
-    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else ("goth1115110" if store_slug == "mercadolivre" else ("quepromo_sp" if store_slug == "shopee" else None)))
+    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else ("goth1115110" if store_slug == "mercadolivre" else ("an_18356121277" if store_slug == "shopee" else None)))
     affiliate_url = build_affiliate_url(raw_url, store_slug=store_slug, custom_tag=custom_tag)
 
     price = req.custom_price if (req.custom_price and req.custom_price > 0) else 99.0

@@ -34,6 +34,7 @@ robot_status = {
 
 AMAZON_STORE_ID = "thiagovinigo-20"
 ML_AFFILIATE_TAG = "goth1115110"
+SHOPEE_AFFILIATE_TAG = "an_18356121277"
 
 
 def enforce_amazon_affiliate_tag(db):
@@ -77,21 +78,22 @@ def enforce_ml_affiliate_tag(db):
 
 
 def enforce_shopee_affiliate_tag(db):
-    """Garante que todos os produtos da Shopee no banco usem a tag oficial configurada."""
+    """Garante que todos os produtos da Shopee no banco usem a tag oficial an_18356121277."""
     try:
         shopee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "shopee").first()
-        sp_tag = shopee_prog.tracking_id if (shopee_prog and shopee_prog.tracking_id) else "quepromo_sp"
+        sp_tag = shopee_prog.tracking_id if (shopee_prog and shopee_prog.tracking_id) else SHOPEE_AFFILIATE_TAG
         shopee_prods = db.query(ProductModel).filter(
             ProductModel.source.ilike("%shopee%")
         ).all()
         for p in shopee_prods:
             target = p.affiliate_url or p.url
             if target and ("shopee.com" in target) and ("s.shopee" not in target) and ("shope.ee" not in target):
-                if "af_siteid=" in target:
-                    p.affiliate_url = re.sub(r"af_siteid=[^&]+", f"af_siteid={sp_tag}", target)
+                if "mmp_pid=" in target:
+                    target = re.sub(r"mmp_pid=[^&]+", f"mmp_pid={sp_tag}", target)
+                    p.affiliate_url = re.sub(r"utm_source=[^&]+", f"utm_source={sp_tag}", target)
                 else:
                     sep = "&" if "?" in target else "?"
-                    p.affiliate_url = f"{target}{sep}af_siteid={sp_tag}&sub_id=quepromo"
+                    p.affiliate_url = f"{target}{sep}utm_source={sp_tag}&mmp_pid={sp_tag}&utm_medium=affiliates"
         db.commit()
     except Exception as e:
         print(f"[Robô Autônomo] Erro ao injetar tags Shopee: {e}")

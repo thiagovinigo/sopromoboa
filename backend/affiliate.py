@@ -12,7 +12,7 @@ DEFAULT_TAGS = {
     "amazon": {"param": "tag", "default": "thiagovinigo-20"},
     "magalu": {"param": "parceiro", "default": "sopromoboa"},
     "mercadolivre": {"param": "matt_tool", "default": "goth1115110"},
-    "shopee": {"param": "af_siteid", "default": "sopromoboa_sp"},
+    "shopee": {"param": "utm_source", "default": "an_18356121277"},
     "kabum": {"param": "tag", "default": "sopromoboa"},
 }
 
@@ -87,8 +87,9 @@ def build_affiliate_url(
         # 4. Regra Shopee
         elif store_slug == "shopee":
             sp_tag = custom_tag or DEFAULT_TAGS["shopee"]["default"]
-            params["af_siteid"] = [sp_tag]
-            params["sub_id"] = ["quepromo"]
+            params["utm_source"] = [sp_tag]
+            params["mmp_pid"] = [sp_tag]
+            params["utm_medium"] = ["affiliates"]
 
         # 5. Outras lojas
         elif store_slug in DEFAULT_TAGS:

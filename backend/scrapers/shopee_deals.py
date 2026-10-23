@@ -23,6 +23,16 @@ HEADERS = {
     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 
+SHOPEE_AFFILIATE_TAG = "an_18356121277"
+
+
+def build_shopee_tag_url(raw_url: str) -> str:
+    if "s.shopee" in raw_url or "shope.ee" in raw_url:
+        return raw_url
+    sep = "&" if "?" in raw_url else "?"
+    return f"{raw_url}{sep}utm_source={SHOPEE_AFFILIATE_TAG}&mmp_pid={SHOPEE_AFFILIATE_TAG}&utm_medium=affiliates"
+
+
 # Itens virais campeões de venda da Shopee
 SHOPEE_VIRAL_FLAGSHIPS = [
     {
@@ -112,7 +122,7 @@ def scrape_shopee() -> List[Dict[str, Any]]:
             "title": item["title"],
             "price": item["price"],
             "list_price": item["list_price"],
-            "url": item["url"],
+            "url": build_shopee_tag_url(item["url"]),
             "source": "Shopee",
             "image_url": item["image_url"],
             "free_shipping": item.get("free_shipping", 1),
