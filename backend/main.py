@@ -160,6 +160,8 @@ class WorkerSearchResult(BaseModel):
     average_price: Optional[float] = None
     potential_savings: Optional[float] = None
     best_store: Optional[str] = None
+    did_you_mean: Optional[str] = None
+    did_you_mean_notice: Optional[str] = None
     stores_comparison: List[StorePriceComparison] = []
     items: List[DealOut] = []
 
@@ -172,33 +174,79 @@ def comparator_search(
     q: str = Query(..., min_length=2, description="Nome do produto para busca personalizada"),
     db: Session = Depends(get_db)
 ):
-    """Busca personalizada: analisa os melhores preços em todas as lojas para o produto informado."""
-    clean_q = q.strip()
-    words = [w for w in re.split(r"\s+", clean_q) if len(w) > 1]
+    """Busca personalizada inteligente com normalização de termos, desambiguação de modelos e ranking multi-lojas."""
+    raw_q = q.strip()
+    q_norm = raw_q.lower()
 
-    # 1. Busca ampla no banco de ofertas
-    query = db.query(ProductModel).filter(ProductModel.is_available == 1)
-    for word in words[:4]:
-        query = query.filter(ProductModel.title.ilike(f"%{word}%"))
+    # 1. Dicionário de Aliases e Typos Frequentes
+    COMMON_ALIASES = {
+        "iphone5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
+        "iphone 5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
+        "ps5": ("playstation 5", None),
+        "playstation5": ("playstation 5", None),
+        "ps4": ("playstation 4", None),
+        "airfryer": ("air fryer", None),
+        "s24": ("galaxy s24", None),
+        "s23": ("galaxy s23", None),
+        "rtx4060": ("rtx 4060", None),
+        "rtx3060": ("rtx 3060", None),
+        "switch": ("nintendo switch", None),
+    }
 
-    matches = query.order_by(ProductModel.price.asc()).limit(60).all()
+    did_you_mean = None
+    did_you_mean_notice = None
+    target_query = raw_q
 
-    # 2. Fallback caso não encontre com todos os termos simultâneos
-    if not matches and len(words) > 1:
-        fallback_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
-        fallback_query = fallback_query.filter(
-            or_(*[ProductModel.title.ilike(f"%{w}%") for w in words[:3]])
-        )
-        matches = fallback_query.order_by(ProductModel.price.asc()).limit(60).all()
+    if q_norm in COMMON_ALIASES:
+        target_query, did_you_mean_notice = COMMON_ALIASES[q_norm]
+        did_you_mean = target_query
+    else:
+        # Separa letras e números colados (ex: iphone15 -> iphone 15, rtx4060 -> rtx 4060)
+        target_query = re.sub(r"([a-zA-Z]{2,})(\d+)", r"\1 \2", raw_q)
+        target_query = re.sub(r"(\d+)([a-zA-Z]{2,})", r"\1 \2", target_query)
 
-    # 3. Agrupa por loja (source) para identificar o melhor preço de cada marketplace
+    tokens = [t.lower() for t in re.split(r"\s+", target_query) if len(t) > 0]
+
+    # 2. Busca preliminar ampla no banco
+    candidates_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+    
+    # Usa o token principal mais longo para filtrar no SQL
+    lead_token = next((t for t in tokens if len(t) > 2), tokens[0] if tokens else "")
+    if lead_token:
+        candidates_query = candidates_query.filter(ProductModel.title.ilike(f"%{lead_token}%"))
+
+    all_candidates = candidates_query.all()
+
+    # 3. Filtragem rigorosa em memória respeitando limites de palavras para modelos numéricos
+    matches = []
+    for p in all_candidates:
+        title_lower = p.title.lower()
+        is_match = True
+        for t in tokens:
+            if t.isdigit():
+                # Para números de modelo (ex: '15', '14', '13'), exige palavra isolada
+                # para não dar match em capacidades de memória como '256GB' ou '512GB' ou '5G'
+                if not re.search(rf"\b{re.escape(t)}\b", title_lower):
+                    is_match = False
+                    break
+            else:
+                if t not in title_lower:
+                    is_match = False
+                    break
+        if is_match:
+            matches.append(p)
+
+    # Ordena pelo menor preço
+    matches.sort(key=lambda x: x.price)
+
+    # 4. Agrupa por loja (source) para identificar o melhor preço de cada marketplace
     store_deals: Dict[str, ProductModel] = {}
     for p in matches:
         s = p.source or "Outros"
         if s not in store_deals or p.price < store_deals[s].price:
             store_deals[s] = p
 
-    items_out = [DealOut.model_validate(p) for p in matches]
+    items_out = [DealOut.model_validate(p) for p in matches[:60]]
     for d in items_out:
         d.is_all_time_low = is_all_time_low(d.price, d.lowest_historic_price)
 
@@ -232,20 +280,23 @@ def comparator_search(
         comparison_list.sort(key=lambda x: x.price)
 
         return WorkerSearchResult(
-            query=clean_q,
+            query=raw_q,
             total_found=len(matches),
             best_price=best_price,
             max_price=max_price,
             average_price=avg_price,
             potential_savings=savings,
             best_store=best_store,
+            did_you_mean=did_you_mean,
+            did_you_mean_notice=did_you_mean_notice,
             stores_comparison=comparison_list,
             items=items_out
         )
     else:
         # Fallback de busca comissionada nos principais varejistas
-        q_enc = urllib.parse.quote_plus(clean_q)
-        q_slug = urllib.parse.quote_plus("-".join(words).lower())
+        q_enc = urllib.parse.quote_plus(raw_q)
+        words_slug = [w for w in re.split(r"\s+", target_query) if len(w) > 1]
+        q_slug = urllib.parse.quote_plus("-".join(words_slug).lower())
 
         fallback_stores = [
             ("Amazon", f"https://www.amazon.com.br/s?k={q_enc}&tag=sopromoboa-20"),
@@ -260,7 +311,7 @@ def comparator_search(
                 store=s_name,
                 price=0.0,
                 deal_id=f"search_{s_name.lower().replace(' ', '_')}",
-                product_title=f"Buscar '{clean_q}' na loja oficial {s_name}",
+                product_title=f"Buscar '{raw_q}' na loja oficial {s_name}",
                 url=s_url,
                 affiliate_url=s_url,
                 image_url=None,
@@ -272,13 +323,15 @@ def comparator_search(
         ]
 
         return WorkerSearchResult(
-            query=clean_q,
+            query=raw_q,
             total_found=0,
             best_price=None,
             max_price=None,
             average_price=None,
             potential_savings=None,
             best_store=None,
+            did_you_mean=did_you_mean,
+            did_you_mean_notice=did_you_mean_notice,
             stores_comparison=comparison_list,
             items=[]
         )

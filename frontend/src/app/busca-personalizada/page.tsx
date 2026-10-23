@@ -230,6 +230,17 @@ function SearchContent() {
                   ? `Analisamos ${result.total_found} ofertas em ${result.stores_comparison.length} lojas parceiras.`
                   : `Nenhum anúncio direto no catálogo local, mas geramos os atalhos de busca oficiais das maiores lojas para você.`}
               </p>
+
+              {result.did_you_mean && (
+                <div className="mt-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-start sm:items-center gap-2.5 text-cyan-300 text-xs shadow-inner">
+                  <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    {result.did_you_mean_notice || (
+                      <>Exibindo resultados customizados para: <strong>{result.did_you_mean}</strong></>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {result.best_store && (

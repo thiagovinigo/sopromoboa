@@ -305,6 +305,8 @@ export interface WorkerSearchResult {
   average_price?: number | null;
   potential_savings?: number | null;
   best_store?: string | null;
+  did_you_mean?: string | null;
+  did_you_mean_notice?: string | null;
   stores_comparison: StorePriceComparison[];
   items: Deal[];
 }
