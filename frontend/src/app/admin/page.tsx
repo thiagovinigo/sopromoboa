@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   ShieldAlert,
   Plus,
@@ -17,6 +18,7 @@ import {
   Layers,
   Settings,
   Eye,
+  EyeOff,
   Zap,
   Bot,
   RefreshCw,
@@ -33,6 +35,10 @@ import {
   Globe,
   Percent,
   Star,
+  Lock,
+  Key,
+  LogOut,
+  ShoppingBag,
 } from "lucide-react";
 import {
   fetchAdminDeals,
@@ -57,10 +63,21 @@ import {
   approveHunterStore,
   rejectHunterStore,
   auditCustomStoreUrl,
+  authenticateAdmin,
 } from "@/lib/api";
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<"anuncios" | "publicar" | "gerador" | "tags" | "metricas" | "workers" | "hunter">("anuncios");
+  // Autenticação Mestra do Painel Admin (Senha: !Thi5361206)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecking, setAuthChecking] = useState<boolean>(true);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<
+    "anuncios" | "publicar" | "gerador" | "tags" | "metricas" | "workers" | "hunter" | "cadastro_afiliados"
+  >("cadastro_afiliados");
 
   // Dados
   const [adminDeals, setAdminDeals] = useState<Deal[]>([]);
@@ -112,10 +129,68 @@ export default function AdminPage() {
   const [savingTag, setSavingTag] = useState(false);
   const [tagSuccess, setTagSuccess] = useState(false);
 
+  // Tags rápidas no diretório de afiliados
+  const [quickTags, setQuickTags] = useState<Record<string, string>>({});
+  const [quickSavedSlug, setQuickSavedSlug] = useState<string | null>(null);
+
   useEffect(() => {
-    loadData();
-    loadHunterData();
+    const saved = typeof window !== "undefined" ? sessionStorage.getItem("sopromoboa_admin_auth") : null;
+    if (saved === "true") {
+      setIsAuthenticated(true);
+      loadData();
+      loadHunterData();
+    }
+    setAuthChecking(false);
   }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setAuthError("");
+    try {
+      const res = await authenticateAdmin(passwordInput.trim());
+      if (res.success) {
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("sopromoboa_admin_auth", "true");
+        }
+        setIsAuthenticated(true);
+        setPasswordInput("");
+        loadData();
+        loadHunterData();
+      } else {
+        setAuthError(res.message || "Senha incorreta. Acesso não autorizado.");
+      }
+    } catch {
+      setAuthError("Erro na autenticação.");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("sopromoboa_admin_auth");
+    }
+    setIsAuthenticated(false);
+  };
+
+  const handleSaveQuickTag = async (slug: string, name: string, commission: string) => {
+    const tagVal = quickTags[slug]?.trim();
+    if (!tagVal) return;
+    try {
+      await saveAffiliate({
+        name,
+        network_slug: slug,
+        tracking_id: tagVal,
+        commission_rate: commission,
+      });
+      setQuickSavedSlug(slug);
+      loadData();
+      setTimeout(() => setQuickSavedSlug(null), 3000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -314,22 +389,128 @@ export default function AdminPage() {
   const formatBRL = (val: number) =>
     val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  // TELA DE VERIFICAÇÃO / LOADING INICIAL
+  if (authChecking) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-emerald-400 text-sm font-semibold animate-pulse">
+          <Flame className="w-5 h-5 animate-spin" /> Verificando credenciais de acesso...
+        </div>
+      </div>
+    );
+  }
+
+  // TELA DE BLOQUEIO / LOGIN COM SENHA MESTRA (!Thi5361206)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-[75vh] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md relative">
+          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-emerald-500 via-rose-500 to-amber-500 opacity-20 blur-xl animate-pulse" />
+          
+          <div className="relative glass-card rounded-3xl p-7 sm:p-8 border border-gray-800 bg-[#0d131f]/95 shadow-2xl space-y-6">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-2xl flame-gradient mx-auto flex items-center justify-center text-white shadow-xl shadow-rose-500/30">
+                <Lock className="w-8 h-8" />
+              </div>
+              <h1 className="text-2xl font-black text-white tracking-tight">
+                Painel Restrito Só Promo Boa
+              </h1>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Área exclusiva de administração, credenciamento de afiliados e inteligência do sistema. Digite a senha mestra para acessar.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1.5 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-emerald-400" /> Senha Mestra do Administrador
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      if (authError) setAuthError("");
+                    }}
+                    placeholder="Digite a senha mestra..."
+                    className="w-full bg-gray-950/90 border border-gray-700 focus:border-emerald-500 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none transition-all pr-11 font-mono tracking-wider"
+                    autoFocus
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {authError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loggingIn || !passwordInput}
+                className="w-full py-3.5 rounded-xl font-black text-sm bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loggingIn ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Verificando...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" /> Desbloquear Painel Admin
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="text-center pt-2 border-t border-gray-800/80">
+              <Link href="/" className="text-xs text-gray-400 hover:text-white transition-colors">
+                ← Voltar para a página inicial
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header do Painel Admin */}
       <div className="relative overflow-hidden rounded-3xl p-8 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-gray-900/80 to-gray-900/90 shadow-2xl">
-        <div className="max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-black uppercase tracking-wider">
-            <DollarSign className="w-4 h-4 text-emerald-400" />
-            Painel do Administrador & Monetização
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-black uppercase tracking-wider">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              Painel do Administrador & Monetização
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+              Central de Afiliados & <br />
+              <span className="text-emerald-400">Melhores Lojas do Brasil</span>
+            </h1>
+            <p className="text-sm text-gray-300">
+              Gerencie seus links de afiliado, cadastre-se nas lojas líderes, audite lojas da internet com IA e acompanhe seus ganhos em tempo real.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Central de Anúncios com <br />
-            <span className="text-emerald-400">Nossos Links de Afiliados</span>
-          </h1>
-          <p className="text-sm text-gray-300">
-            Gerencie os anúncios monetizados que aparecem com seus links diretos de afiliado, acompanhe cliques contabilizados em tempo real e gere links para redes sociais.
-          </p>
+
+          <button
+            onClick={handleLogout}
+            className="self-start sm:self-center px-4 py-2.5 rounded-xl bg-gray-800/90 hover:bg-rose-500/20 text-gray-300 hover:text-rose-300 border border-gray-700 hover:border-rose-500/40 text-xs font-bold transition-all flex items-center gap-2 shrink-0 shadow-lg"
+            title="Bloquear e sair do painel"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair do Painel
+          </button>
         </div>
       </div>
 
@@ -369,77 +550,19 @@ export default function AdminPage() {
       {/* Navegação por Abas do Painel */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-gray-800 pb-3">
         <button
-          onClick={() => setActiveTab("anuncios")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "anuncios"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+          onClick={() => setActiveTab("cadastro_afiliados")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "cadastro_afiliados"
+              ? "bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/30"
               : "bg-gray-800/80 text-gray-400 hover:text-white"
           }`}
         >
-          <Layers className="w-4 h-4" /> Nossos Anúncios ({adminDeals.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab("publicar")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "publicar"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-              : "bg-gray-800/80 text-gray-400 hover:text-white"
-          }`}
-        >
-          <Plus className="w-4 h-4" /> + Publicar Anúncio Afiliado
-        </button>
-
-        <button
-          onClick={() => setActiveTab("gerador")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "gerador"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-              : "bg-gray-800/80 text-gray-400 hover:text-white"
-          }`}
-        >
-          <Link2 className="w-4 h-4" /> Gerador Rápido de Links
-        </button>
-
-        <button
-          onClick={() => setActiveTab("tags")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "tags"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-              : "bg-gray-800/80 text-gray-400 hover:text-white"
-          }`}
-        >
-          <Settings className="w-4 h-4" /> Tags de Parceiros
-        </button>
-
-        <button
-          onClick={() => setActiveTab("metricas")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "metricas"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-              : "bg-gray-800/80 text-gray-400 hover:text-white"
-          }`}
-        >
-          <TrendingUp className="w-4 h-4" /> Métricas de Conversão
-        </button>
-
-        <button
-          onClick={() => setActiveTab("workers")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === "workers"
-              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-              : "bg-gray-800/80 text-gray-400 hover:text-white"
-          }`}
-        >
-          <Bot className="w-4 h-4" /> Robôs & Workers
-          {workerStatus?.is_running && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          )}
+          <ShoppingBag className="w-4 h-4 text-amber-300" /> 🚀 Cadastro em Lojas de Afiliados
         </button>
 
         <button
           onClick={() => setActiveTab("hunter")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
             activeTab === "hunter"
               ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30"
               : "bg-gray-800/80 text-gray-400 hover:text-white"
@@ -451,6 +574,75 @@ export default function AdminPage() {
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-gray-950">
               {hunterStats.pending_approval}
             </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab("anuncios")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "anuncios"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Layers className="w-4 h-4" /> Nossos Anúncios ({adminDeals.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("publicar")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "publicar"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Plus className="w-4 h-4" /> + Publicar Anúncio Afiliado
+        </button>
+
+        <button
+          onClick={() => setActiveTab("gerador")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "gerador"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Link2 className="w-4 h-4" /> Gerador Rápido de Links
+        </button>
+
+        <button
+          onClick={() => setActiveTab("tags")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "tags"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Settings className="w-4 h-4" /> Tags de Parceiros
+        </button>
+
+        <button
+          onClick={() => setActiveTab("metricas")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "metricas"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" /> Métricas de Conversão
+        </button>
+
+        <button
+          onClick={() => setActiveTab("workers")}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === "workers"
+              ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
+              : "bg-gray-800/80 text-gray-400 hover:text-white"
+          }`}
+        >
+          <Bot className="w-4 h-4" /> Robôs & Workers
+          {workerStatus?.is_running && (
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           )}
         </button>
       </div>
@@ -1508,6 +1700,226 @@ export default function AdminPage() {
                 })}
             </div>
           )}
+        </section>
+      )}
+
+      {/* ABA 8: CADASTRO EM LOJAS DE AFILIADOS (MELHORES PRODUTOS) */}
+      {activeTab === "cadastro_afiliados" && (
+        <section className="space-y-6">
+          {/* Banner Principal */}
+          <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 border border-amber-500/40 bg-gradient-to-r from-amber-950/50 via-orange-950/30 to-gray-900 shadow-2xl">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black uppercase tracking-wider">
+                <ShoppingBag className="w-4 h-4 text-amber-400" />
+                Central Oficial de Credenciamento
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Cadastre-se nas Melhores <span className="text-amber-400">Lojas de Afiliados</span>
+              </h2>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                Para começar a faturar comissões em cada venda gerada pelo <strong>Só Promo Boa</strong>, cadastre-se nos programas oficiais abaixo. Assim que receber sua aprovação, cole sua <strong>Tag/ID</strong> diretamente no card correspondente para ativar a comissão automática em todos os links da plataforma!
+              </p>
+            </div>
+          </div>
+
+          {/* Grid dos Programas Oficiais */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {[
+              {
+                slug: "amazon",
+                name: "Amazon Brasil Associados",
+                headline: "Maior conversão em Tecnologia, iPhones, Echo Alexa e Livros",
+                category: "Smartphones, Tech, Casa Inteligente",
+                commission: "Até 15% por venda",
+                cookie: "24 horas",
+                registerUrl: "https://associados.amazon.com.br/",
+                bestProducts: ["iPhones & Apple Watch", "Dispositivos Echo com Alexa", "Kindle & Livros", "Periféricos & Hardware Gamer"],
+                tips: "Aprovação imediata. Ao se cadastrar, você define seu Store ID (ex: sopromoboa-20).",
+                badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+              },
+              {
+                slug: "mercadolivre",
+                name: "Mercado Livre Afiliados",
+                headline: "Maior marketplace do Brasil com entrega Full no mesmo dia",
+                category: "Eletrônicos, Monitores, Ferramentas, TVs",
+                commission: "Até 16% por venda",
+                cookie: "24 horas",
+                registerUrl: "https://www.mercadolivre.com.br/afiliados",
+                bestProducts: ["Monitores 144Hz/165Hz", "Smart TVs 4K", "Smartphones Samsung e Xiaomi", "Ferramentas & Áudio"],
+                tips: "Basta ter uma conta Mercado Livre ativa. Gere links diretos para qualquer anúncio oficial.",
+                badgeColor: "bg-yellow-500/10 text-yellow-300 border-yellow-500/30",
+              },
+              {
+                slug: "magalu",
+                name: "Parceiro Magalu (Magazine Luiza)",
+                headline: "Líder em Eletrodomésticos, Linha Branca, TVs e Celulares",
+                category: "Linha Branca, TVs, Eletroportáteis",
+                commission: "Até 12% + bônus",
+                cookie: "7 dias",
+                registerUrl: "https://www.parceiromagalu.com.br/",
+                bestProducts: ["Airfryers & Eletroportáteis", "Geladeiras e Máquinas de Lavar", "Smart TVs 50\" e 55\"", "Celulares em promoção Pix"],
+                tips: "Você cria sua vitrine 'magazinevoce.com.br/sua_loja' em menos de 5 minutos gratuitamente.",
+                badgeColor: "bg-blue-500/10 text-blue-300 border-blue-500/30",
+              },
+              {
+                slug: "shopee",
+                name: "Shopee Afiliados",
+                headline: "Monetização de alto volume com cupom de frete grátis",
+                category: "Acessórios, Gadgets, Periféricos, Moda",
+                commission: "Até 14% por venda",
+                cookie: "7 dias",
+                registerUrl: "https://affiliate.shopee.com.br/",
+                bestProducts: ["Fones Bluetooth TWS", "Acessórios e Cabos Gamer", "Achadinhos & Gadgets Úteis", "Monitores e Acessórios de Mesa"],
+                tips: "Excelente taxa de conversão em compras impulsivas e cupons agressivos pelo app.",
+                badgeColor: "bg-orange-500/10 text-orange-300 border-orange-500/30",
+              },
+              {
+                slug: "awin",
+                name: "Awin Brasil (Rede Oficial Dell, Samsung, Electrolux, JBL)",
+                headline: "1 único cadastro dá acesso a centenas de lojas oficiais premium",
+                category: "Lojas Oficiais das Marcas",
+                commission: "4% a 8% por venda",
+                cookie: "30 dias",
+                registerUrl: "https://www.awin.com/br/afiliados",
+                bestProducts: ["Dell (Notebooks e Monitores 4K)", "Samsung Oficial (S24, Galaxy)", "LG Loja Oficial", "Electrolux & JBL Harman"],
+                tips: "Rede global de maior ticket médio. Comissões de R$ 150 a R$ 400 por notebook Dell vendido.",
+                badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+              },
+              {
+                slug: "lomadee",
+                name: "Lomadee / SocialSoul (KaBuM!, Terabyte, Pichau, Fast Shop)",
+                headline: "A principal rede brasileira para Hardware, PCs Gamer e Tecnologia",
+                category: "Hardware, Games, PCs Completos",
+                commission: "3% a 9% por venda",
+                cookie: "30 dias",
+                registerUrl: "https://www.socialsoul.com.br/",
+                bestProducts: ["KaBuM! (Placas RTX, Processadores)", "Terabyteshop (Upgrades Gamer)", "Fast Shop (TVs OLED)", "Loja do Mecânico (Ferramentas)"],
+                tips: "Ponto obrigatório para quem monetiza tecnologia e jogos no Brasil. Suporte a deep-link.",
+                badgeColor: "bg-purple-500/10 text-purple-300 border-purple-500/30",
+              },
+              {
+                slug: "growth",
+                name: "Growth Supplements (Programa Direto)",
+                headline: "Maior índice de recompra e retenção do mercado fitness",
+                category: "Suplementos & Nutrição Esportiva",
+                commission: "5% a 10% de comissão",
+                cookie: "30 dias",
+                registerUrl: "https://www.gsuplementos.com.br/",
+                bestProducts: ["100% Whey Protein Concentrado", "Creatina Monohidratada Creapure", "Multivitamínicos & Ômega 3", "Roupas e Coqueteleiras"],
+                tips: "Vencedora RA1000 com nota 9.3. Os clientes compram mensalmente garantindo receita recorrente.",
+                badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+              },
+              {
+                slug: "avell",
+                name: "Avell Notebooks de Alta Performance",
+                headline: "Comissões de até R$ 800 líquidos em uma única venda",
+                category: "Laptops para Engenharia, IA e Games",
+                commission: "3% a 6% por venda",
+                cookie: "30 dias",
+                registerUrl: "https://avell.com.br/afiliados",
+                bestProducts: ["Workstations Avell A-Series", "Notebooks Gamer com RTX 4080/4090", "Laptops para Arquitetura e Render 3D"],
+                tips: "Ticket médio de R$ 9.000 a R$ 18.000. Duas vendas por mês já geram mais de R$ 1.000 de lucro.",
+                badgeColor: "bg-rose-500/10 text-rose-300 border-rose-500/30",
+              },
+            ].map((prog) => {
+              const currentTag = programs.find((p) => p.network_slug === prog.slug)?.tracking_id;
+
+              return (
+                <div
+                  key={prog.slug}
+                  className="glass-card rounded-2xl p-6 border border-gray-800 hover:border-amber-500/40 transition-all flex flex-col justify-between space-y-4 bg-gradient-to-b from-gray-900/90 to-gray-950"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${prog.badgeColor}`}>
+                          {prog.category}
+                        </span>
+                        <h3 className="text-lg font-black text-white mt-1.5">{prog.name}</h3>
+                        <p className="text-xs text-gray-400 mt-0.5">{prog.headline}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-emerald-400 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 block">
+                          {prog.commission}
+                        </span>
+                        <span className="text-[10px] text-gray-500 block mt-1">Cookie: {prog.cookie}</span>
+                      </div>
+                    </div>
+
+                    {/* Melhores Produtos para Promover */}
+                    <div className="p-3 rounded-xl bg-gray-950 border border-gray-800/80 space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 block tracking-wider">
+                        ⭐ Melhores Produtos para Promover:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {prog.bestProducts.map((p, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 rounded-md bg-gray-800 text-[11px] text-gray-300 font-medium"
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-amber-300/80 bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-xl">
+                      💡 <strong>Dica de aprovação:</strong> {prog.tips}
+                    </p>
+                  </div>
+
+                  {/* Ações: Cadastrar + Salvar Tag */}
+                  <div className="pt-3 border-t border-gray-800/80 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={prog.registerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2.5 px-4 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-gray-950 shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        Cadastrar-se Agora na Loja <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+
+                    {/* Formulário Rápido de Inserção de Tag */}
+                    <div className="p-2.5 rounded-xl bg-gray-950 border border-gray-800 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-400 font-semibold">Sua Tag / ID de Afiliado nesta Loja:</span>
+                        {currentTag && (
+                          <span className="text-emerald-400 font-bold font-mono">
+                            Ativa: {currentTag}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder={currentTag ? `Atualizar tag (${currentTag})` : "Cole sua Tag/ID (ex: seuid-20)"}
+                          value={quickTags[prog.slug] || ""}
+                          onChange={(e) =>
+                            setQuickTags({ ...quickTags, [prog.slug]: e.target.value })
+                          }
+                          className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                        <button
+                          onClick={() => handleSaveQuickTag(prog.slug, prog.name, prog.commission)}
+                          disabled={!quickTags[prog.slug]}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 transition-colors shrink-0"
+                        >
+                          Salvar Tag
+                        </button>
+                      </div>
+                      {quickSavedSlug === prog.slug && (
+                        <span className="text-[10px] text-emerald-400 font-semibold block animate-fade-in">
+                          ✓ Tag salva com sucesso! Links comissionados ativados.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
     </div>

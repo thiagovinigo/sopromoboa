@@ -1239,6 +1239,30 @@ def health_check():
 
 
 # ==========================================
+# AUTENTICAÇÃO DO PAINEL ADMINISTRATIVO
+# ==========================================
+ADMIN_MASTER_PASSWORD = os.getenv("ADMIN_PASSWORD", "!Thi5361206")
+
+
+class AdminAuthRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/admin/auth")
+def admin_auth(req: AdminAuthRequest):
+    """Valida a senha mestra para acesso seguro ao Painel Administrativo."""
+    if req.password == ADMIN_MASTER_PASSWORD:
+        return {
+            "success": True,
+            "authenticated": True,
+            "token": hashlib.sha256(ADMIN_MASTER_PASSWORD.encode()).hexdigest(),
+            "message": "Acesso concedido ao Painel Administrativo Só Promo Boa."
+        }
+    raise HTTPException(status_code=401, detail="Senha incorreta. Acesso negado ao painel administrativo.")
+
+
+
+# ==========================================
 # STORE HUNTER AI AGENT - ENDPOINTS
 # ==========================================
 class DiscoveredStoreOut(BaseModel):
