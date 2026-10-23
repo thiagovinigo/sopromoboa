@@ -23,6 +23,7 @@ from affiliate import build_affiliate_url, create_managed_link, detect_store_fro
 from normalize import clean_title, detect_category, detect_brand
 from scraper_worker import run_worker_once
 from store_hunter_agent import StoreHunterAgent
+from lightning_robot import run_lightning_robot_cycle, robot_status
 
 # Inicialização do banco de dados
 Base.metadata.create_all(bind=engine)
@@ -79,7 +80,7 @@ class DealOut(BaseModel):
     is_featured: int = 0
     is_lightning_deal: int = 0
     clicks_count: int = 0
-    last_updated: datetime
+    last_updated: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -503,28 +504,30 @@ def list_lightning_deals(
 
 
 @app.post("/api/deals/lightning/scan")
-def trigger_lightning_scan(db: Session = Depends(get_db)):
-    """Robô varredor de ofertas relâmpago: audita o catálogo e promove itens com super desconto."""
-    now = datetime.utcnow()
-    # 1. Marca produtos com desconto >= 25%
-    db.query(ProductModel).filter(ProductModel.discount_percent >= 25.0).update(
-        {ProductModel.is_lightning_deal: 1}, synchronize_session=False
-    )
-    # 2. Assegura que produtos emblemáticos das marcas mais procuradas estejam marcados
-    flagship_terms = ["fire tv", "echo", "kindle", "creatina", "whey", "air fryer", "iphone", "galaxy s", "jbl"]
-    for term in flagship_terms:
-        db.query(ProductModel).filter(ProductModel.title.ilike(f"%{term}%"), ProductModel.discount_percent >= 15.0).update(
-            {ProductModel.is_lightning_deal: 1}, synchronize_session=False
-        )
+def trigger_lightning_scan():
+    """Aciona um ciclo completo do robô autônomo (popula, atualiza e exclui expirados)."""
+    result = run_lightning_robot_cycle()
+    return result
 
-    db.commit()
-    total_lightning = db.query(ProductModel).filter(ProductModel.is_lightning_deal == 1, ProductModel.is_available == 1).count()
-    return {
-        "success": True,
-        "message": f"Robôs de Ofertas Relâmpago finalizaram a auditoria. {total_lightning} ofertas ativas!",
-        "total_active_lightning": total_lightning,
-        "scanned_at": now.isoformat()
-    }
+
+@app.get("/api/deals/lightning/robot-status")
+def get_lightning_robot_status():
+    """Retorna o status em tempo real do robô de 1 hora, histórico e contagem de itens ativos/excluídos."""
+    return robot_status
+
+
+@app.post("/api/deals/lightning/robot-run")
+def trigger_lightning_robot_now():
+    """Dispara imediatamente o ciclo autônomo do robô em segundo plano."""
+    if robot_status["is_running"]:
+        return {"success": False, "message": "O robô já está executando uma varredura agora!"}
+
+    def _bg():
+        run_lightning_robot_cycle()
+
+    t = threading.Thread(target=_bg, daemon=True)
+    t.start()
+    return {"success": True, "message": "Ciclo autônomo do robô disparado em segundo plano!"}
 
 
 @app.get("/api/deals/{product_id}", response_model=DealDetailOut)
@@ -1273,14 +1276,15 @@ worker_state = {
 
 
 def background_worker_loop():
-    """Executa a raspagem autônoma de ofertas em background a cada 15 minutos."""
+    """Executa o ciclo autônomo do robô a cada 1 hora (3600s), populando, atualizando e excluindo ofertas relâmpago."""
     time.sleep(5)
     while True:
         try:
             start_t = time.time()
             worker_state["is_running"] = True
-            print("[AutoWorker] Executando varredura autônoma periódica...")
-            stats = run_worker_once()
+            print("[Robô Autônomo 1 Hora] Iniciando ciclo programado de leitura, atualização e exclusão...")
+            robot_result = run_lightning_robot_cycle()
+            stats = robot_result.get("stats", {})
             duration = round(time.time() - start_t, 2)
             now_iso = datetime.utcnow().isoformat()
             worker_state["last_run"] = now_iso
@@ -1289,14 +1293,15 @@ def background_worker_loop():
                 "timestamp": now_iso,
                 "stats": stats,
                 "duration_seconds": duration,
-                "type": "scheduled"
+                "type": "scheduled_1h"
             })
             worker_state["history"] = worker_state["history"][:20]
+            print(f"[Robô Autônomo 1 Hora] Ciclo concluído com sucesso em {duration}s!")
         except Exception as e:
-            print(f"[AutoWorker] Erro na execução periódica: {e}")
+            print(f"[Robô Autônomo 1 Hora] Erro na execução periódica: {e}")
         finally:
             worker_state["is_running"] = False
-        time.sleep(15 * 60) # 15 minutos
+        time.sleep(3600) # 1 hora exata (3600 segundos)
 
 
 @app.on_event("startup")

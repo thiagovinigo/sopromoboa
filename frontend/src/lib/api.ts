@@ -501,6 +501,25 @@ export async function triggerLightningScan(): Promise<{
   }
 }
 
+export async function fetchLightningRobotStatus(): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE}/api/deals/lightning/robot-status`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function triggerLightningRobotRun(): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE}/api/deals/lightning/robot-run`, { method: "POST" });
+    return await res.json();
+  } catch (err) {
+    return { success: false, message: "Erro ao comunicar com o robô" };
+  }
+}
+
 export async function quickImportDeal(payload: {
   url: string;
   custom_title?: string;

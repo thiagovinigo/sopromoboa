@@ -64,6 +64,7 @@ import {
   rejectHunterStore,
   auditCustomStoreUrl,
   authenticateAdmin,
+  triggerLightningScan,
 } from "@/lib/api";
 
 export default function AdminPage() {
@@ -1278,6 +1279,64 @@ export default function AdminPage() {
               </button>
             </div>
           )}
+
+          {/* Card do Robô Autônomo de Ofertas Relâmpago (100% Automático) */}
+          <div className="rounded-3xl p-6 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[#0d131f] to-rose-500/10 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </span>
+                  <span className="text-sm font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                    <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    Robô Autônomo de Ofertas Relâmpago (Ciclo a cada 1 Hora)
+                  </span>
+                </div>
+                <p className="text-xs text-gray-300 max-w-2xl leading-relaxed">
+                  Você <strong>não precisa cadastrar nada manualmente</strong>. O robô opera 24 horas por dia: lê novos produtos dos nichos mais lucrativos, atualiza os preços das promoções ativas, e <strong>exclui automaticamente</strong> da vitrine qualquer oferta cujo desconto acabou ou cujo produto esgotou.
+                </p>
+              </div>
+
+              <button
+                onClick={async () => {
+                  setWorkerRunning(true);
+                  try {
+                    const res = await triggerLightningScan();
+                    alert(res.message);
+                    loadData();
+                  } finally {
+                    setWorkerRunning(false);
+                  }
+                }}
+                disabled={workerRunning}
+                className="px-5 py-2.5 rounded-xl font-bold text-xs text-black bg-amber-400 hover:bg-amber-300 transition-all flex items-center gap-2 shadow-lg shadow-amber-400/20 shrink-0 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${workerRunning ? "animate-spin" : ""}`} />
+                <span>{workerRunning ? "Executando Robô..." : "Forçar Ciclo Agora"}</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 border-t border-white/[0.08]">
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-[11px] text-gray-400 block font-semibold">1. População Automática</span>
+                <span className="text-xs font-bold text-emerald-400">Varre Amazon, Magalu e ML</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-[11px] text-gray-400 block font-semibold">2. Atualização Contínua</span>
+                <span className="text-xs font-bold text-blue-400">Recalcula descontos em tempo real</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-[11px] text-gray-400 block font-semibold">3. Exclusão de Expirados</span>
+                <span className="text-xs font-bold text-rose-400">Remove se preço subiu ou esgotou</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-[11px] text-gray-400 block font-semibold">4. Tag de Afiliado</span>
+                <span className="text-xs font-bold text-amber-300 font-mono">thiagovinigo-20</span>
+              </div>
+            </div>
+          </div>
 
           {/* Card Principal de Status e Controle */}
           <div className="glass-card rounded-3xl p-6 border border-gray-800 space-y-6">

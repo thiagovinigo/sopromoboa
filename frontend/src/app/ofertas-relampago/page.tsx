@@ -4,7 +4,7 @@ import React, { useState, useEffect, useTransition } from "react";
 import { Zap, Bot, RefreshCw, Flame, Sparkles, Filter, Search, ShieldCheck, ArrowRight, Tag, Clock } from "lucide-react";
 import DealCard from "@/components/DealCard";
 import AlertModal from "@/components/AlertModal";
-import { fetchLightningDeals, triggerLightningScan, Deal } from "@/lib/api";
+import { fetchLightningDeals, triggerLightningScan, fetchLightningRobotStatus, Deal } from "@/lib/api";
 import { fetchFavoriteIds } from "@/lib/favorites";
 
 const TOP_NICHES = [
@@ -33,6 +33,7 @@ export default function OfertasRelampagoPage() {
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [robotInfo, setRobotInfo] = useState<any>(null);
 
   // Filtros
   const [selectedNiche, setSelectedNiche] = useState("todas");
@@ -47,8 +48,14 @@ export default function OfertasRelampagoPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
 
   // Timer para efeito visual do robô
-  const [countdown, setCountdown] = useState(720); // 12 minutos
+  const [countdown, setCountdown] = useState(3600); // 1 hora
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    fetchLightningRobotStatus().then((info) => {
+      if (info) setRobotInfo(info);
+    });
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -142,12 +149,18 @@ export default function OfertasRelampagoPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span>Robôs ativos: <strong>{totalDeals.toLocaleString("pt-BR")}</strong> ofertas relâmpago auditadas</span>
+              <span>Robô 100% Autônomo: <strong>{totalDeals.toLocaleString("pt-BR")}</strong> ofertas ativas (ciclo a cada 1h)</span>
             </div>
+
+            {robotInfo?.last_stats && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 font-medium">
+                <span>Último ciclo: <strong>+{robotInfo.last_stats.promoted}</strong> populadas | <strong>{robotInfo.last_stats.pruned}</strong> expiradas excluídas</span>
+              </div>
+            )}
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-gray-400">
               <Clock className="w-3 h-3 text-amber-400" />
-              <span>Próxima varredura em: <strong className="text-white">{formatCountdown(countdown)}</strong></span>
+              <span>Próxima varredura automática: <strong className="text-white">{formatCountdown(countdown)}</strong></span>
             </div>
 
             <button
@@ -156,7 +169,7 @@ export default function OfertasRelampagoPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${scanning ? "animate-spin text-amber-400" : ""}`} />
-              <span>{scanning ? "Analisando Ofertas..." : "Atualizar Robôs Agora"}</span>
+              <span>{scanning ? "Varrendo Agora..." : "Executar Robô Agora"}</span>
             </button>
           </div>
 
