@@ -31,13 +31,10 @@ app = FastAPI(
 )
 
 # Configuração de CORS
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
-allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins if "*" not in allowed_origins else ["*"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Total-Count"]
@@ -137,7 +134,26 @@ class AffiliateProgramCreate(BaseModel):
 
 class GenerateLinkRequest(BaseModel):
     url: str
-    campaign: Optional[str] = "radar"
+    campaign: Optional[str] = "redes_sociais"
+
+
+class StorePriceComparison(BaseModel):
+    store: str
+    price: float
+    deal_id: str
+    product_title: str
+    url: str
+
+
+class WorkerSearchResult(BaseModel):
+    query: str
+    total_found: int
+    best_price: Optional[float] = None
+    max_price: Optional[float] = None
+    average_price: Optional[float] = None
+    potential_savings: Optional[float] = None
+    stores_comparison: List[StorePriceComparison] = []
+    items: List[DealOut] = []
 
 
 # ==========================================
@@ -281,6 +297,109 @@ def get_radar_deals(db: Session = Depends(get_db)):
     return out
 
 
+@app.get("/api/worker/search", response_model=WorkerSearchResult)
+def worker_search_deals(
+    q: str = Query(..., min_length=2, description="Termo do produto a ser caçado pelos workers"),
+    max_price: Optional[float] = Query(None, description="Preço máximo desejado"),
+    min_price: Optional[float] = Query(None, description="Preço mínimo desejado"),
+    source: Optional[str] = Query(None, description="Filtrar por loja específica"),
+    sort: str = Query("price_asc", description="price_asc | discount_desc | recent"),
+    limit: int = Query(40, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Aciona a busca inteligente dos workers para caçar o melhor preço de um item entre lojas."""
+    query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+
+    # Limpeza e tokenização dos termos
+    raw_terms = [t.strip() for t in q.replace("-", " ").replace("+", " ").split() if len(t.strip()) > 1]
+
+    if raw_terms:
+        from sqlalchemy import and_, or_
+        and_conditions = [ProductModel.title.ilike(f"%{term}%") for term in raw_terms]
+        matched_query = query.filter(and_(*and_conditions))
+
+        # Se houver menos de 2 resultados com AND estrito, relaxa para OR
+        if matched_query.count() < 2:
+            or_conditions = [ProductModel.title.ilike(f"%{term}%") for term in raw_terms]
+            query = query.filter(or_(*or_conditions))
+        else:
+            query = matched_query
+
+    if source:
+        query = query.filter(ProductModel.source.ilike(f"%{source}%"))
+    if max_price is not None:
+        query = query.filter(ProductModel.price <= max_price)
+    if min_price is not None:
+        query = query.filter(ProductModel.price >= min_price)
+
+    if sort == "discount_desc":
+        query = query.order_by(ProductModel.discount_percent.desc())
+    elif sort == "recent":
+        query = query.order_by(ProductModel.last_updated.desc())
+    else: # price_asc (menor preço primeiro)
+        query = query.order_by(ProductModel.price.asc())
+
+    all_matches = query.limit(limit).all()
+
+    if not all_matches:
+        return WorkerSearchResult(
+            query=q,
+            total_found=0,
+            best_price=None,
+            max_price=None,
+            average_price=None,
+            potential_savings=None,
+            stores_comparison=[],
+            items=[]
+        )
+
+    prices = [p.price for p in all_matches]
+    best_p = min(prices)
+    max_p = max(prices)
+    avg_p = round(sum(prices) / len(prices), 2)
+    savings = round(max_p - best_p, 2) if len(prices) > 1 else round(best_p * 0.15, 2)
+
+    # Comparação consolidada de melhor preço por loja
+    store_map = {}
+    for p in all_matches:
+        if p.source not in store_map or p.price < store_map[p.source]["price"]:
+            store_map[p.source] = {
+                "store": p.source,
+                "price": p.price,
+                "deal_id": p.id,
+                "product_title": p.title,
+                "url": p.affiliate_url or p.url
+            }
+
+    stores_comp = [
+        StorePriceComparison(
+            store=data["store"],
+            price=data["price"],
+            deal_id=data["deal_id"],
+            product_title=data["product_title"],
+            url=data["url"]
+        )
+        for data in sorted(store_map.values(), key=lambda x: x["price"])
+    ]
+
+    out_items = []
+    for item in all_matches:
+        data = DealOut.model_validate(item)
+        data.is_all_time_low = is_all_time_low(item.price, item.lowest_historic_price)
+        out_items.append(data)
+
+    return WorkerSearchResult(
+        query=q,
+        total_found=len(all_matches),
+        best_price=best_p,
+        max_price=max_p,
+        average_price=avg_p,
+        potential_savings=savings,
+        stores_comparison=stores_comp,
+        items=out_items
+    )
+
+
 # ==========================================
 # ENDPOINT DE REDIRECIONAMENTO COMISSIONADO
 # ==========================================
@@ -307,10 +426,43 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
         pass
 
     target_url = product.affiliate_url or product.url
-    if not target_url or not target_url.startswith("http"):
+
+    # Se a URL for inválida ou um identificador interno de teste, resolve automaticamente para busca direta na loja
+    markers = [
+        "/dp/ama_", "/p/mer_", "/produto/mag_", "/produto/kab_",
+        "/product/sho_", "/cas_", "/produto/tool_", "/produto/perf_",
+        "/produto/hw_", "/produto/info_", "/produto/game_", "/produto/eletro_",
+        "/produto/casa_", "/produto/sport_", "/produto/hlth_", "/produto/book_"
+    ]
+    is_placeholder = any(m in (target_url or "") for m in markers)
+
+    if not target_url or not target_url.startswith("http") or is_placeholder:
         import urllib.parse
-        store_q = product.source or "oferta"
-        target_url = f"https://www.google.com/search?q={urllib.parse.quote_plus(product.title + ' ' + store_q)}"
+        import re
+        clean_title = re.sub(r"[—\-\(\)\/\,\.\:\+]", " ", product.title)
+        clean_title = re.sub(r"\s+", " ", clean_title).strip()
+        words = clean_title.split()[:7]
+        search_term = " ".join(words)
+        q = urllib.parse.quote_plus(search_term)
+        q_slug = urllib.parse.quote_plus("-".join(words).lower())
+        s = (product.source or "").lower()
+
+        if "amazon" in s:
+            target_url = f"https://www.amazon.com.br/s?k={q}&tag=sopromoboa-20&linkCode=ll2&ref=as_li_ss_tl"
+        elif "mercado" in s:
+            target_url = f"https://lista.mercadolivre.com.br/{q_slug}?matt_tool=sopromoboa_ml"
+        elif "magalu" in s or "magazine" in s:
+            target_url = f"https://www.magazineluiza.com.br/busca/{q_slug}/?parceiro=sopromoboa&tipo=link"
+        elif "kabum" in s:
+            target_url = f"https://www.kabum.com.br/busca/{q_slug}?tag=sopromoboa"
+        elif "shopee" in s:
+            target_url = f"https://shopee.com.br/search?keyword={q}&af_siteid=sopromoboa_sp"
+        elif "casas" in s or "bahia" in s:
+            target_url = f"https://www.casasbahia.com.br/{q_slug}/b?parceiro=sopromoboa"
+        elif "terabyte" in s:
+            target_url = f"https://www.terabyteshop.com.br/busca?str={q}"
+        else:
+            target_url = f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_title + ' ' + (product.source or ''))}"
 
     return RedirectResponse(url=target_url, status_code=307)
 
@@ -329,15 +481,21 @@ def get_categories(db: Session = Depends(get_db)):
     )
     labels = {
         "smartphones": "Smartphones & Celulares",
-        "informatica": "Informática & PCs",
-        "eletronicos": "Eletrônicos & TV",
+        "informatica": "Informática & Notebooks",
+        "hardware": "Hardware & Peças PC",
+        "perifericos": "Periféricos & Acessórios",
+        "eletronicos": "Eletrônicos, Áudio & TV",
         "games": "Games & Consoles",
-        "eletrodomesticos": "Eletrodomésticos",
-        "casa": "Casa & Cozinha",
+        "eletrodomesticos": "Eletrodomésticos & Cozinha",
+        "casa": "Casa Inteligente & Decoração",
+        "esportes": "Esportes & Calçados",
+        "saude": "Saúde & Suplementos",
+        "ferramentas": "Ferramentas & Jardim",
+        "livros": "Livros & E-readers",
         "geral": "Geral & Outros"
     }
     return [
-        {"slug": cat, "name": labels.get(cat, cat.title()), "total_deals": count}
+        {"slug": cat, "name": labels.get(cat, cat.replace("_", " ").title()), "total_deals": count}
         for cat, count in counts if cat
     ]
 
