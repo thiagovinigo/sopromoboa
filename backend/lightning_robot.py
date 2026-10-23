@@ -76,6 +76,28 @@ def enforce_ml_affiliate_tag(db):
         db.rollback()
 
 
+def enforce_shopee_affiliate_tag(db):
+    """Garante que todos os produtos da Shopee no banco usem a tag oficial configurada."""
+    try:
+        shopee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "shopee").first()
+        sp_tag = shopee_prog.tracking_id if (shopee_prog and shopee_prog.tracking_id) else "quepromo_sp"
+        shopee_prods = db.query(ProductModel).filter(
+            ProductModel.source.ilike("%shopee%")
+        ).all()
+        for p in shopee_prods:
+            target = p.affiliate_url or p.url
+            if target and ("shopee.com" in target) and ("s.shopee" not in target) and ("shope.ee" not in target):
+                if "af_siteid=" in target:
+                    p.affiliate_url = re.sub(r"af_siteid=[^&]+", f"af_siteid={sp_tag}", target)
+                else:
+                    sep = "&" if "?" in target else "?"
+                    p.affiliate_url = f"{target}{sep}af_siteid={sp_tag}&sub_id=quepromo"
+        db.commit()
+    except Exception as e:
+        print(f"[Robô Autônomo] Erro ao injetar tags Shopee: {e}")
+        db.rollback()
+
+
 def prune_expired_lightning_deals(db) -> int:
     """Exclui / desativa da vitrine de Ofertas Relâmpago os itens que perderam o desconto ou expiraram."""
     now = datetime.utcnow()
@@ -173,9 +195,10 @@ def run_lightning_robot_cycle() -> Dict[str, Any]:
         # 1. Executa scrapers para ler novidades da Amazon, Gatry e outras lojas
         worker_stats = run_worker_once()
 
-        # 2. Injeta tags de afiliado da Amazon e Mercado Livre
+        # 2. Injeta tags de afiliado da Amazon, Mercado Livre e Shopee
         enforce_amazon_affiliate_tag(db)
         enforce_ml_affiliate_tag(db)
+        enforce_shopee_affiliate_tag(db)
 
         # 3. Exclui da vitrine itens que perderam o desconto ou expiraram
         pruned = prune_expired_lightning_deals(db)

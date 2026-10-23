@@ -28,7 +28,7 @@ def detect_store_from_url(url: str) -> str:
         return "magalu"
     if "kabum.com" in domain:
         return "kabum"
-    if "shopee.com" in domain:
+    if "shopee.com" in domain or "shope.ee" in domain or "s.shopee" in domain:
         return "shopee"
     if "terabyteshop.com" in domain:
         return "terabyte"
@@ -57,6 +57,10 @@ def build_affiliate_url(
         store_slug = detect_store_from_url(original_url)
 
     try:
+        # Se já for um shortlink de afiliado da Shopee ou Mercado Livre, preserva o link
+        if "s.shopee.com.br" in original_url or "shope.ee" in original_url:
+            return original_url
+
         parsed = urlparse(original_url)
         params = parse_qs(parsed.query)
 
@@ -80,7 +84,13 @@ def build_affiliate_url(
             ml_tag = custom_tag or DEFAULT_TAGS["mercadolivre"]["default"]
             params["matt_tool"] = [ml_tag]
 
-        # 4. Outras lojas
+        # 4. Regra Shopee
+        elif store_slug == "shopee":
+            sp_tag = custom_tag or DEFAULT_TAGS["shopee"]["default"]
+            params["af_siteid"] = [sp_tag]
+            params["sub_id"] = ["quepromo"]
+
+        # 5. Outras lojas
         elif store_slug in DEFAULT_TAGS:
             cfg = DEFAULT_TAGS[store_slug]
             params[cfg["param"]] = [custom_tag or cfg["default"]]

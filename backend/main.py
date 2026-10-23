@@ -796,6 +796,16 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
                 else:
                     sep = "&" if "?" in target_url else "?"
                     target_url = f"{target_url}{sep}matt_tool={ml_tag}"
+        elif "shopee.com" in target_url or "shope.ee" in target_url:
+            import re
+            sp_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "shopee").first()
+            sp_tag = sp_prog.tracking_id if (sp_prog and sp_prog.tracking_id) else "quepromo_sp"
+            if "s.shopee.com.br" not in target_url and "shope.ee" not in target_url:
+                if "af_siteid=" in target_url:
+                    target_url = re.sub(r"af_siteid=[^&]+", f"af_siteid={sp_tag}", target_url)
+                else:
+                    sep = "&" if "?" in target_url else "?"
+                    target_url = f"{target_url}{sep}af_siteid={sp_tag}&sub_id=quepromo"
 
     return RedirectResponse(url=target_url, status_code=307)
 
@@ -1183,6 +1193,10 @@ def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
             if len(slug_raw) > 3 and not slug_raw.startswith("p/"):
                 extracted_title = clean_title(slug_raw)
 
+    elif "shopee.com" in raw_url or "shope.ee" in raw_url:
+        store = "Shopee"
+        store_slug = "shopee"
+
     title = req.custom_title or extracted_title or f"Super Oferta {store}"
     title = clean_title(title)
     cat = req.category or detect_category(title)
@@ -1190,7 +1204,7 @@ def quick_import_deal(req: QuickImportRequest, db: Session = Depends(get_db)):
 
     # Injeta a tag de afiliado configurada para a loja
     program = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == store_slug).first()
-    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else ("goth1115110" if store_slug == "mercadolivre" else None))
+    custom_tag = program.tracking_id if program else ("thiagovinigo-20" if store_slug == "amazon" else ("goth1115110" if store_slug == "mercadolivre" else ("quepromo_sp" if store_slug == "shopee" else None)))
     affiliate_url = build_affiliate_url(raw_url, store_slug=store_slug, custom_tag=custom_tag)
 
     price = req.custom_price if (req.custom_price and req.custom_price > 0) else 99.0
