@@ -469,7 +469,11 @@ def list_lightning_deals(
     """Retorna ofertas relâmpago detectadas por robôs ou cadastradas com super descontos."""
     query = db.query(ProductModel).filter(
         ProductModel.is_available == 1,
-        or_(ProductModel.is_lightning_deal == 1, ProductModel.discount_percent >= 25.0)
+        ProductModel.is_lightning_deal == 1,
+        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.url.ilike("%s?k=%"),
+        ~ProductModel.url.ilike("%/search?%"),
+        ~ProductModel.url.ilike("%/search/%")
     )
 
     if q:
