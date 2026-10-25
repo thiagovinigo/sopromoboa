@@ -20,6 +20,7 @@ import {
 import { fetchDealDetail, DealDetail, Deal } from "@/lib/api";
 import PriceChart from "@/components/PriceChart";
 import DealCard from "@/components/DealCard";
+import AdBanner from "@/components/AdBanner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
@@ -247,6 +248,11 @@ export default function ProductDetailPage() {
           currentPrice={deal.price}
           lowestPrice={deal.lowest_historic_price}
         />
+      </section>
+
+      {/* Bloco Publicitário Estratégico (Google AdSense) */}
+      <section className="my-6">
+        <AdBanner format="horizontal" />
       </section>
 
       {/* Ofertas Semelhantes */}

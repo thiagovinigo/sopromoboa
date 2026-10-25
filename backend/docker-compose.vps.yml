@@ -1,0 +1,56 @@
+networks:
+  web:
+    external: true
+    name: evolution-stack_web
+
+volumes:
+  sopromoboa_data:
+
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - sopromoboa_data:/data
+      - .:/app
+    command: >
+      sh -c "if [ ! -f /data/sopromoboa.db ] && [ -f /app/sopromoboa.db ]; then
+               echo 'Copiando banco inicial sopromoboa.db para /data...';
+               cp /app/sopromoboa.db /data/sopromoboa.db;
+             fi &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir /app"
+    environment:
+      - DATABASE_URL=sqlite:////data/sopromoboa.db
+      - API_DOMAIN=${API_DOMAIN:-api.quepromo.com.br}
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sopromoboa-api.rule=Host(`${API_DOMAIN:-api.quepromo.com.br}`)"
+      - "traefik.http.routers.sopromoboa-api.entrypoints=websecure"
+      - "traefik.http.routers.sopromoboa-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sopromoboa-api.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.sopromoboa-ratelimit.ratelimit.average=30"
+      - "traefik.http.middlewares.sopromoboa-ratelimit.ratelimit.burst=60"
+      - "traefik.http.routers.sopromoboa-api.middlewares=sopromoboa-ratelimit"
+
+  worker:
+    build: .
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - sopromoboa_data:/data
+      - .:/app
+    environment:
+      - DATABASE_URL=sqlite:////data/sopromoboa.db
+    entrypoint: >
+      sh -c "while true; do
+               echo 'Iniciando ciclo de varredura de ofertas...';
+               python /app/scraper_worker.py;
+               python /app/lightning_robot.py;
+               echo 'Ciclo concluido. Aguardando 30 minutos...';
+               sleep 1800;
+             done"
+    networks:
+      - web
