@@ -21,11 +21,11 @@ HEADERS = {
 
 
 def scrape_gatry() -> List[Dict[str, Any]]:
-    """Raspagem multi-página de promoções ativas e reais (páginas 1 a 4)."""
+    """Raspagem multi-página de promoções ativas e reais (páginas 1 a 10)."""
     results = []
     seen_urls = set()
 
-    for page in range(1, 5):
+    for page in range(1, 11):
         url = f"https://gatry.com/?page={page}" if page > 1 else "https://gatry.com"
         try:
             resp = requests.get(url, headers=HEADERS, timeout=10)
