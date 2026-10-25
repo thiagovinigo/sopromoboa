@@ -122,6 +122,7 @@ export default function ProductDetailPage() {
               src={deal.image_url}
               alt=""
               aria-label={deal.title}
+              referrerPolicy="no-referrer"
               onError={() => setImgError(true)}
               className="max-h-80 w-auto object-contain hover:scale-105 transition-transform duration-300"
             />

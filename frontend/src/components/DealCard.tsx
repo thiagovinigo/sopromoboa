@@ -159,6 +159,7 @@ export default function DealCard({
             src={deal.image_url}
             alt=""
             aria-label={deal.title}
+            referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
             className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
