@@ -15,6 +15,17 @@ export const metadata: Metadata = {
   title: "Que Promo | Radar de Quedas de Preço & Ofertas Reais",
   description: "Monitore promoções que realmente baixaram de preço no Brasil. Histórico real, comparador entre lojas, alertas de desconto e links de afiliados auditados no quepromo.com.br.",
   keywords: ["promoções", "descontos", "queda de preço", "radar de ofertas", "menor preço histórico", "ofertas amazon", "mercado livre", "magalu", "quepromo"],
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({
