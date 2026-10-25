@@ -14,7 +14,7 @@ DEFAULT_TAGS = {
     "mercadolivre": {"param": "matt_tool", "default": "goth1115110"},
     "shopee": {"param": "utm_source", "default": "an_18356121277"},
     "kabum": {"param": "tag", "default": "sopromoboa"},
-    "lomadee": {"param": "sourceId", "default": "sopromoboa_lomadee"},
+    "lomadee": {"param": "sourceId", "default": "2324685"},
 }
 
 

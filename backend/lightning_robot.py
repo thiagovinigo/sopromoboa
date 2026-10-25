@@ -132,14 +132,21 @@ def prune_expired_lightning_deals(db) -> int:
         ProductModel.last_updated < stale_threshold,
         ProductModel.is_featured == 0
     ).all()
-    # 4. Remove ofertas relâmpago que sejam páginas de busca em vez de link direto de produto
+    # 4. Remove ofertas relâmpago que sejam páginas de busca ou fotos genéricas do Unsplash
     com_busca = db.query(ProductModel).filter(
         ProductModel.is_lightning_deal == 1,
         (
             ProductModel.url.ilike("%/busca/%") |
             ProductModel.url.ilike("%s?k=%") |
             ProductModel.url.ilike("%/search?%") |
-            ProductModel.url.ilike("%/search/%")
+            ProductModel.url.ilike("%/search/%") |
+            ProductModel.url.ilike("%lista.mercadolivre%") |
+            ProductModel.affiliate_url.ilike("%/busca/%") |
+            ProductModel.affiliate_url.ilike("%s?k=%") |
+            ProductModel.affiliate_url.ilike("%/search?%") |
+            ProductModel.affiliate_url.ilike("%/search/%") |
+            ProductModel.affiliate_url.ilike("%lista.mercadolivre%") |
+            ProductModel.image_url.ilike("%unsplash.com%")
         )
     ).all()
     for p in com_busca:
@@ -154,15 +161,20 @@ def promote_super_discounts_to_lightning(db) -> int:
     """Promove automaticamente para Ofertas Relâmpago os produtos com desconto >= 25% e flagships com LINK DIRETO de produto."""
     promoted_count = 0
 
-    # 1. Itens disponíveis com desconto real >= 25% E com link direto (sem páginas filtradas/busca)
+    # 1. Itens disponíveis com desconto real >= 25% E com link direto (sem páginas filtradas/busca e sem Unsplash)
     super_descontos = db.query(ProductModel).filter(
         ProductModel.is_available == 1,
         ProductModel.discount_percent >= 25.0,
         ProductModel.is_lightning_deal == 0,
-        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.image_url.ilike("%unsplash.com%"),
+        ~ProductModel.affiliate_url.ilike("%s?k=%"),
+        ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.affiliate_url.ilike("%/busca/%"),
+        ~ProductModel.affiliate_url.ilike("%/search%"),
         ~ProductModel.url.ilike("%s?k=%"),
-        ~ProductModel.url.ilike("%/search?%"),
-        ~ProductModel.url.ilike("%/search/%")
+        ~ProductModel.url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.url.ilike("%/search%")
     ).all()
     for p in super_descontos:
         p.is_lightning_deal = 1
@@ -179,10 +191,15 @@ def promote_super_discounts_to_lightning(db) -> int:
             ProductModel.title.ilike(f"%{term}%"),
             ProductModel.discount_percent >= 15.0,
             ProductModel.is_lightning_deal == 0,
-            ~ProductModel.url.ilike("%/busca/%"),
+            ~ProductModel.image_url.ilike("%unsplash.com%"),
+            ~ProductModel.affiliate_url.ilike("%s?k=%"),
+            ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+            ~ProductModel.affiliate_url.ilike("%/busca/%"),
+            ~ProductModel.affiliate_url.ilike("%/search%"),
             ~ProductModel.url.ilike("%s?k=%"),
-            ~ProductModel.url.ilike("%/search?%"),
-            ~ProductModel.url.ilike("%/search/%")
+            ~ProductModel.url.ilike("%lista.mercadolivre%"),
+            ~ProductModel.url.ilike("%/busca/%"),
+            ~ProductModel.url.ilike("%/search%")
         ).all()
         for p in matches:
             p.is_lightning_deal = 1

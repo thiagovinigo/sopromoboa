@@ -405,8 +405,18 @@ def list_deals(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
-    """Lista as ofertas com filtros dinâmicos e paginação."""
-    query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+    query = db.query(ProductModel).filter(
+        ProductModel.is_available == 1,
+        ~ProductModel.image_url.ilike("%unsplash.com%"),
+        ~ProductModel.affiliate_url.ilike("%s?k=%"),
+        ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.affiliate_url.ilike("%/busca/%"),
+        ~ProductModel.affiliate_url.ilike("%/search%"),
+        ~ProductModel.url.ilike("%s?k=%"),
+        ~ProductModel.url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.url.ilike("%/search%")
+    )
 
     if q:
         query = query.filter(ProductModel.title.ilike(f"%{q}%"))
@@ -470,10 +480,15 @@ def list_lightning_deals(
     query = db.query(ProductModel).filter(
         ProductModel.is_available == 1,
         ProductModel.is_lightning_deal == 1,
-        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.image_url.ilike("%unsplash.com%"),
+        ~ProductModel.affiliate_url.ilike("%s?k=%"),
+        ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.affiliate_url.ilike("%/busca/%"),
+        ~ProductModel.affiliate_url.ilike("%/search%"),
         ~ProductModel.url.ilike("%s?k=%"),
-        ~ProductModel.url.ilike("%/search?%"),
-        ~ProductModel.url.ilike("%/search/%")
+        ~ProductModel.url.ilike("%lista.mercadolivre%"),
+        ~ProductModel.url.ilike("%/busca/%"),
+        ~ProductModel.url.ilike("%/search%")
     )
 
     if q:
@@ -577,7 +592,16 @@ def get_radar_deals(db: Session = Depends(get_db)):
         db.query(ProductModel)
         .filter(
             ProductModel.is_available == 1,
-            ProductModel.price_dropped == 1
+            ProductModel.price_dropped == 1,
+            ~ProductModel.image_url.ilike("%unsplash.com%"),
+            ~ProductModel.affiliate_url.ilike("%s?k=%"),
+            ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+            ~ProductModel.affiliate_url.ilike("%/busca/%"),
+            ~ProductModel.affiliate_url.ilike("%/search%"),
+            ~ProductModel.url.ilike("%s?k=%"),
+            ~ProductModel.url.ilike("%lista.mercadolivre%"),
+            ~ProductModel.url.ilike("%/busca/%"),
+            ~ProductModel.url.ilike("%/search%")
         )
         .order_by(ProductModel.discount_percent.desc())
         .limit(16)
@@ -590,7 +614,16 @@ def get_radar_deals(db: Session = Depends(get_db)):
             db.query(ProductModel)
             .filter(
                 ProductModel.is_available == 1,
-                ProductModel.discount_percent > 15
+                ProductModel.discount_percent > 15,
+                ~ProductModel.image_url.ilike("%unsplash.com%"),
+                ~ProductModel.affiliate_url.ilike("%s?k=%"),
+                ~ProductModel.affiliate_url.ilike("%lista.mercadolivre%"),
+                ~ProductModel.affiliate_url.ilike("%/busca/%"),
+                ~ProductModel.affiliate_url.ilike("%/search%"),
+                ~ProductModel.url.ilike("%s?k=%"),
+                ~ProductModel.url.ilike("%lista.mercadolivre%"),
+                ~ProductModel.url.ilike("%/busca/%"),
+                ~ProductModel.url.ilike("%/search%")
             )
             .order_by(ProductModel.discount_percent.desc())
             .limit(16 - len(deals))
@@ -735,11 +768,18 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
     except Exception:
         pass
 
-    target_url = product.affiliate_url or product.url
+    # Sempre priorizar link direto de produto caso o affiliate_url seja busca ou genérico
+    has_direct_url = product.url and any(d in product.url for d in ["/dp/", "/gp/product/", "/p/", "/produto/", "meli.la", "shopee.com.br/product", "s.shopee.com.br"])
+    is_aff_search = any(s in (product.affiliate_url or "") for s in ["s?k=", "lista.mercadolivre", "/busca/", "/search"])
+    
+    if has_direct_url and (not product.affiliate_url or is_aff_search):
+        target_url = product.url
+    else:
+        target_url = product.affiliate_url or product.url
 
     # Busca tag dinâmica cadastrada no banco de dados para a Amazon
     amazon_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "amazon").first()
-    amazon_tag = amazon_prog.tracking_id if (amazon_prog and amazon_prog.tracking_id) else "quepromo-20"
+    amazon_tag = amazon_prog.tracking_id if (amazon_prog and amazon_prog.tracking_id) else "thiagovinigo-20"
 
     # Se a URL for inválida ou um identificador interno de teste, resolve automaticamente para busca direta na loja
     markers = [
