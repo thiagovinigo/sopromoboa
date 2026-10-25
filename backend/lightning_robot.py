@@ -232,6 +232,32 @@ def run_lightning_robot_cycle() -> Dict[str, Any]:
             ProductModel.is_available == 1
         ).count()
 
+        # 6. Dispara a melhor oferta do ciclo para o canal do Telegram (se configurado)
+        try:
+            from telegram_notifier import send_deal_to_telegram
+            top_deal = db.query(ProductModel).filter(
+                ProductModel.is_lightning_deal == 1,
+                ProductModel.is_available == 1,
+                ProductModel.discount_percent >= 25.0
+            ).order_by(ProductModel.discount_percent.desc()).first()
+
+            if top_deal:
+                send_deal_to_telegram(
+                    title=top_deal.title,
+                    price=top_deal.price,
+                    list_price=top_deal.list_price,
+                    previous_price=top_deal.previous_price,
+                    discount_percent=top_deal.discount_percent,
+                    store_name=top_deal.source,
+                    affiliate_url=f"https://quepromo.com.br/r/{top_deal.id}",
+                    image_url=top_deal.image_url,
+                    coupon_code=top_deal.coupon_code,
+                    free_shipping=(top_deal.free_shipping == 1),
+                    category=top_deal.category
+                )
+        except Exception as e:
+            print(f"[Telegram Notifier] Erro ao disparar oferta para o canal: {e}")
+
         duration = round(time.time() - start_t, 2)
         next_run_iso = (datetime.utcnow() + timedelta(hours=1)).isoformat()
 
