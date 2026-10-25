@@ -1,3 +1,2 @@
 # Google AdSense ads.txt - Que Promo (quepromo.com.br)
-# Substitua pelo seu ID de editor oficial da sua conta do Google AdSense:
-google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-8215576310884543, DIRECT, f08c47fec0942fa0
