@@ -793,7 +793,12 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
             else:
                 target_url = f"{base_cb}?parceiro=quepromo"
         elif "terabyte" in s:
-            target_url = f"https://www.terabyteshop.com.br/busca?str={q}"
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            base_tb = f"https://www.terabyteshop.com.br/busca?str={q}"
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(base_tb)}"
+            else:
+                target_url = base_tb
         else:
             target_url = f"https://www.google.com/search?q={urllib.parse.quote_plus(clean_title + ' ' + (product.source or ''))}"
     else:
@@ -825,7 +830,13 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
                     target_url = re.sub(r"utm_source=[^&]+", f"utm_source={sp_tag}", target_url)
                 else:
                     sep = "&" if "?" in target_url else "?"
-                    target_url = f"{target_url}{sep}utm_source={sp_tag}&mmp_pid={sp_tag}&utm_medium=affiliates"
+        # Se já for um link redir.lomadee.com, apenas atualiza/assegura o sourceId correto sem re-encapsular
+        elif "redir.lomadee.com" in target_url:
+            import re
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = re.sub(r"sourceId=[^&]+", f"sourceId={lomadee_prog.tracking_id}", target_url)
+            return RedirectResponse(url=target_url, status_code=307)
         elif "magazineluiza.com" in target_url or "magazinevoce.com" in target_url:
             import re
             import urllib.parse
@@ -849,6 +860,16 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
             if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
                 target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(target_url)}"
         elif "casasbahia.com.br" in target_url:
+            import urllib.parse
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(target_url)}"
+        elif "terabyteshop.com" in target_url:
+            import urllib.parse
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(target_url)}"
+        elif "fastshop.com" in target_url:
             import urllib.parse
             lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
             if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
