@@ -42,6 +42,7 @@ export default function RootLayout({
           name="google-site-verification"
           content="uTn_GeyjT7ROB0RmOi0nokWQQP8ulF8kakooicAcv-Y"
         />
+        <meta name="lomadee" content="2324685" />
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8215576310884543"
