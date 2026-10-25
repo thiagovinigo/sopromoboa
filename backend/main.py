@@ -768,15 +768,30 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
             ml_tag = ml_prog.tracking_id if (ml_prog and ml_prog.tracking_id) else "quepromo_ml"
             target_url = f"https://lista.mercadolivre.com.br/{q_slug}?matt_tool={ml_tag}"
         elif "magalu" in s or "magazine" in s:
-            mag_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "magalu").first()
-            mag_tag = mag_prog.tracking_id if (mag_prog and mag_prog.tracking_id) else "quepromo"
-            target_url = f"https://www.magazineluiza.com.br/busca/{q_slug}/?parceiro={mag_tag}&tipo=link"
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            base_magalu = f"https://www.magazineluiza.com.br/busca/{q_slug}/"
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(base_magalu)}"
+            else:
+                mag_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "magalu").first()
+                mag_tag = mag_prog.tracking_id if (mag_prog and mag_prog.tracking_id) else "sopromoboa"
+                target_url = f"{base_magalu}?parceiro={mag_tag}&tipo=link"
         elif "kabum" in s:
-            target_url = f"https://www.kabum.com.br/busca/{q_slug}?tag=quepromo"
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            base_kabum = f"https://www.kabum.com.br/busca/{q_slug}"
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(base_kabum)}"
+            else:
+                target_url = f"{base_kabum}?tag=quepromo"
         elif "shopee" in s:
             target_url = f"https://shopee.com.br/search?keyword={q}&af_siteid=quepromo_sp"
         elif "casas" in s or "bahia" in s:
-            target_url = f"https://www.casasbahia.com.br/{q_slug}/b?parceiro=quepromo"
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            base_cb = f"https://www.casasbahia.com.br/{q_slug}/b"
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(base_cb)}"
+            else:
+                target_url = f"{base_cb}?parceiro=quepromo"
         elif "terabyte" in s:
             target_url = f"https://www.terabyteshop.com.br/busca?str={q}"
         else:
@@ -811,6 +826,33 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
                 else:
                     sep = "&" if "?" in target_url else "?"
                     target_url = f"{target_url}{sep}utm_source={sp_tag}&mmp_pid={sp_tag}&utm_medium=affiliates"
+        elif "magazineluiza.com" in target_url or "magazinevoce.com" in target_url:
+            import re
+            import urllib.parse
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                clean_magalu = target_url
+                if "magazinevoce.com.br" in clean_magalu:
+                    clean_magalu = re.sub(r"https?://(www\.)?magazinevoce\.com\.br/[^/]+/", "https://www.magazineluiza.com.br/", clean_magalu)
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(clean_magalu)}"
+            else:
+                mag_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "magalu").first()
+                mag_tag = mag_prog.tracking_id if (mag_prog and mag_prog.tracking_id) else "sopromoboa"
+                if "magazinevoce.com.br" in target_url:
+                    target_url = re.sub(r"magazinevoce\.com\.br/[^/]+", f"magazinevoce.com.br/{mag_tag}", target_url)
+                else:
+                    sep = "&" if "?" in target_url else "?"
+                    target_url = f"{target_url}{sep}parceiro={mag_tag}&tipo=link"
+        elif "kabum.com.br" in target_url:
+            import urllib.parse
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(target_url)}"
+        elif "casasbahia.com.br" in target_url:
+            import urllib.parse
+            lomadee_prog = db.query(AffiliateProgramModel).filter(AffiliateProgramModel.network_slug == "lomadee").first()
+            if lomadee_prog and lomadee_prog.status == "active" and lomadee_prog.tracking_id:
+                target_url = f"https://redir.lomadee.com/v2/click?sourceId={lomadee_prog.tracking_id}&url={urllib.parse.quote_plus(target_url)}"
 
     return RedirectResponse(url=target_url, status_code=307)
 

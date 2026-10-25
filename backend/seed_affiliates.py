@@ -34,8 +34,15 @@ DEFAULTS = [
     {
         "name": "Shopee Afiliados",
         "network_slug": "shopee",
-        "tracking_id": "sopromoboa_sp",
-        "commission_rate": "Até 14%",
+        "tracking_id": "an_18356121277",
+        "commission_rate": "Até 14% a 20%",
+        "status": "active"
+    },
+    {
+        "name": "Lomadee / SocialSoul (Magalu, KaBuM, Fast Shop)",
+        "network_slug": "lomadee",
+        "tracking_id": "sopromoboa_lomadee",
+        "commission_rate": "Até 12%",
         "status": "active"
     }
 ]
