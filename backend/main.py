@@ -26,6 +26,7 @@ from store_hunter_agent import StoreHunterAgent
 from lightning_robot import run_lightning_robot_cycle, robot_status
 from lomadee_client import PRODUCT_ID_PREFIX, affiliate_link_for_product, is_short_link
 from admin_auth import admin_guard, check_password, create_admin_token, is_admin_configured
+from category_map import CATEGORY_LABELS
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # Inicialização do banco de dados
@@ -971,6 +972,7 @@ def get_categories(db: Session = Depends(get_db)):
         "livros": "Livros & E-readers",
         "geral": "Geral & Outros"
     }
+    labels.update(CATEGORY_LABELS)  # inclui as categorias novas (moda, infantil, beleza...)
     return [
         {"slug": cat, "name": labels.get(cat, cat.replace("_", " ").title()), "total_deals": count}
         for cat, count in counts if cat

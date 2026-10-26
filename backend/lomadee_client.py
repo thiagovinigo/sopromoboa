@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 import requests
 from dotenv import load_dotenv
 
+from category_map import category_for
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
@@ -174,6 +176,7 @@ def build_raw_listing(product: Dict[str, Any], brand: Optional[Dict[str, Any]]) 
 
     return {
         "id": _listing_id(product["id"]),
+        "category": category_for(title, f"{brand['name']} {brand.get('segment') or ''}"),
         "title": title,
         "price": price,
         "list_price": list_price,
@@ -197,16 +200,19 @@ def collect_listings(
 
 
 def select_listings(
-    listings: Iterable[Dict[str, Any]], *, per_brand_cap: int, total_cap: int
+    listings: Iterable[Dict[str, Any]], *, per_brand_cap: int, total_cap: int, group_key: str = "source"
 ) -> List[Dict[str, Any]]:
-    """Limita por loja (maiores descontos primeiro) e intercala as lojas para manter diversidade."""
-    by_source: Dict[str, List[Dict[str, Any]]] = {}
+    """Limita por grupo (maiores descontos primeiro) e intercala os grupos para manter diversidade.
+
+    O grupo é a loja por padrão; use group_key="category" quando todas as ofertas são da mesma loja.
+    """
+    by_group: Dict[str, List[Dict[str, Any]]] = {}
     for listing in listings:
-        by_source.setdefault(listing["source"], []).append(listing)
+        by_group.setdefault(listing[group_key], []).append(listing)
 
     queues = [
         sorted(items, key=lambda x: _discount_percent(x["price"], x["list_price"]), reverse=True)[:per_brand_cap]
-        for items in by_source.values()
+        for items in by_group.values()
     ]
 
     selected: List[Dict[str, Any]] = []

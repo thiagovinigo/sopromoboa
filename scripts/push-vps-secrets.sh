@@ -8,7 +8,7 @@ VPS_USER="${VPS_USER:-root}"
 VPS_KEY="${VPS_KEY:-$HOME/.ssh/buscarmas_vps}"
 VPS_DIR="${VPS_DIR:-/opt/sopromoboa}"
 LOCAL_ENV="${LOCAL_ENV:-backend/.env}"
-KEYS=(LOMADEE_API_KEY LOMADEE_LINKS_API_KEY ADMIN_PASSWORD)
+KEYS=(LOMADEE_API_KEY LOMADEE_LINKS_API_KEY ADMIN_PASSWORD SHOPEE_FEED_URLS)
 
 [ -f "$LOCAL_ENV" ] || { echo "Arquivo $LOCAL_ENV não encontrado."; exit 1; }
 

@@ -29,7 +29,13 @@ from normalize import normalize_listing
 from pricing import apply_price_change, is_price_drop_active, calculate_discount_percent
 from affiliate import build_affiliate_url
 from feature_flags import LIGHTNING_ENABLED
-from lomadee_client import PRODUCT_ID_PREFIX, is_short_link
+from lomadee_client import PRODUCT_ID_PREFIX as LOMADEE_ID_PREFIX, is_short_link
+from shopee_feed import PRODUCT_ID_PREFIX as SHOPEE_FEED_ID_PREFIX
+
+# Scrapers de catálogo completo: o item que some do catálogo sai do ar. Valor = prefixo de id do scraper.
+RETIRING_SCRAPERS = {"Lomadee": LOMADEE_ID_PREFIX, "Shopee Feed": SHOPEE_FEED_ID_PREFIX}
+# Itens desses scrapers chegam sem histórico de preço: não ganham "menor preço" no primeiro registro.
+NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX)
 
 # Garante a criação de todas as tabelas
 Base.metadata.create_all(bind=engine)
@@ -62,14 +68,15 @@ def discover_scrapers() -> List[Dict[str, Any]]:
     return scrapers
 
 
-def retire_missing_lomadee_products(db, store_info: Dict[str, Any], seen_ids: List[str]) -> int:
-    """Marca como indisponíveis os itens da Lomadee que sumiram do catálogo na última varredura."""
-    if store_info["name"] != "Lomadee" or not seen_ids:
+def retire_missing_products(db, store_info: Dict[str, Any], seen_ids: List[str]) -> int:
+    """Marca como indisponíveis os itens de um scraper de catálogo que sumiram na última varredura."""
+    prefix = RETIRING_SCRAPERS.get(store_info["name"])
+    if not prefix or not seen_ids:
         return 0
 
     seen = set(seen_ids)
     rows = db.query(ProductModel.id).filter(
-        ProductModel.id.startswith(PRODUCT_ID_PREFIX, autoescape=True),
+        ProductModel.id.startswith(prefix, autoescape=True),
         ProductModel.is_available == 1,
     ).all()
     stale = [product_id for (product_id,) in rows if product_id not in seen]
@@ -107,7 +114,8 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
 
             # Injeta tag de afiliado se houver programa cadastrado
             store_slug = item["source"].lower()
-            if store_slug in affiliate_programs:
+            # Link de afiliado trazido pelo próprio scraper (ex.: feed da Shopee) tem prioridade sobre a tag genérica
+            if store_slug in affiliate_programs and not raw.get("affiliate_url"):
                 item["affiliate_url"] = build_affiliate_url(
                     item["url"],
                     store_slug=store_slug,
@@ -173,8 +181,8 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
             else:
                 # Novo produto descoberto
                 is_lightning = 1 if LIGHTNING_ENABLED and item["discount_percent"] >= 25.0 else 0
-                # Itens da Lomadee chegam sem histórico: sem "menor preço" até haver variação real observada
-                first_lowest_price = None if product_id.startswith(PRODUCT_ID_PREFIX) else item["price"]
+                # Itens de catálogo chegam sem histórico: sem "menor preço" até haver variação real observada
+                first_lowest_price = None if product_id.startswith(NO_HISTORY_PREFIXES) else item["price"]
                 new_prod = ProductModel(
                     id=product_id,
                     title=item["title"],
@@ -216,9 +224,9 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                             stats["alerts_triggered"] += 1
                             print(f"[ALERTA DISPARADO] Oferta '{item['title']}' atingiu R$ {item['price']} (Desconto: {item['discount_percent']}%)!")
 
-        retired = retire_missing_lomadee_products(db, store_info, scraped_ids)
+        retired = retire_missing_products(db, store_info, scraped_ids)
         if retired:
-            print(f"[Worker] {retired} itens da Lomadee marcados como indisponíveis.")
+            print(f"[Worker] {retired} itens de {store_info['name']} marcados como indisponíveis.")
         db.flush()
 
         # Atualiza métricas de cada loja do lote (a Lomadee entrega várias lojas de uma vez)
