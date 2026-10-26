@@ -84,6 +84,19 @@ def test_build_raw_listing_rejects_brands_without_an_approved_channel():
     assert lc.build_raw_listing(make_product(), no_channel) is None
 
 
+def test_build_raw_listing_drops_medicines_and_non_personal_care_in_pharmacies():
+    pharmacy = {**BRAND, "name": "Drogasmil", "segment": "Perfimaria e farmácia"}
+
+    medicine = make_product(name="Bisoprolol 5mg Genérico 30 Comprimidos")
+    cosmetic = make_product(name="Protetor Solar Corporal FPS 50")
+    unknown = make_product(name="Item Qualquer de Prateleira")
+
+    assert lc.build_raw_listing(medicine, pharmacy) is None
+    assert lc.build_raw_listing(cosmetic, pharmacy) is not None
+    assert lc.build_raw_listing(unknown, pharmacy) is None
+    assert lc.build_raw_listing(unknown, BRAND) is not None
+
+
 def test_select_listings_applies_per_brand_and_total_caps():
     listings = [
         {"id": f"a{i}", "source": "A", "price": 50.0, "list_price": 50.0 + i + 6}

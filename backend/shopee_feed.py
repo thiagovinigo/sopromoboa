@@ -14,6 +14,7 @@ import requests
 from dotenv import load_dotenv
 
 from category_map import category_for
+from content_policy import is_restricted_listing
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -68,6 +69,8 @@ def build_raw_listing(row: Dict[str, str]) -> Optional[Dict[str, Any]]:
     product_link = (row.get("product_link") or "").strip()
     short_link = (row.get("product_short link") or "").strip()
     if not item_id or not title or not image_url.startswith("https://"):
+        return None
+    if is_restricted_listing(title):
         return None
     if not _PRODUCT_LINK_RE.match(product_link) or not short_link.startswith(_SHORT_LINK_PREFIX):
         return None

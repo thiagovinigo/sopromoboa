@@ -14,6 +14,7 @@ import requests
 from dotenv import load_dotenv
 
 from category_map import category_for
+from content_policy import is_restricted_listing
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -166,6 +167,8 @@ def build_raw_listing(product: Dict[str, Any], brand: Optional[Dict[str, Any]]) 
     image_url = next((img.get("url") for img in product.get("images") or [] if img.get("url")), None)
     pricing = _first_pricing(product)
     if not url.startswith("https://") or not title or not image_url or not pricing:
+        return None
+    if is_restricted_listing(title, f"{brand['name']} {brand.get('segment') or ''}"):
         return None
 
     price, list_price = pricing

@@ -65,6 +65,11 @@ def test_build_raw_listing_rejects_unusable_rows(overrides):
     assert sf.build_raw_listing(make_row(**overrides)) is None
 
 
+def test_build_raw_listing_drops_medicines():
+    assert sf.build_raw_listing(make_row(title="Dipirona 500mg 10 Comprimidos Genérico")) is None
+    assert sf.build_raw_listing(make_row(title="Mule Mocassim Feminina Chic")) is not None
+
+
 def test_collect_listings_dedupes_by_item_id():
     rows = [make_row(), make_row(title="Duplicado"), make_row(itemid="2", product_link="https://shopee.com.br/product/9/2")]
 
