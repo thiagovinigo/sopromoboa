@@ -71,6 +71,19 @@ def test_build_raw_listing_rejects_inactive_brand():
     assert lc.build_raw_listing(make_product(), inactive) is None
 
 
+def test_build_raw_listing_rejects_brands_without_an_approved_channel():
+    blocked = {
+        **BRAND,
+        "channels": [
+            {"name": "Que Promo", "shortUrls": [], "message": "This channel is not allowed by the organization."}
+        ],
+    }
+    no_channel = {**BRAND, "channels": []}
+
+    assert lc.build_raw_listing(make_product(), blocked) is None
+    assert lc.build_raw_listing(make_product(), no_channel) is None
+
+
 def test_select_listings_applies_per_brand_and_total_caps():
     listings = [
         {"id": f"a{i}", "source": "A", "price": 50.0, "list_price": 50.0 + i + 6}

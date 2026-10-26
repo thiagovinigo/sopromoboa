@@ -153,6 +153,9 @@ def build_raw_listing(product: Dict[str, Any], brand: Optional[Dict[str, Any]]) 
     """Converte um produto da API no formato aceito por normalize_listing; None se não for aproveitável."""
     if not brand or not (brand.get("network") or {}).get("active"):
         return None
+    # Marca sem link liberado para o canal = sem aprovação: o produto não geraria comissão
+    if not pick_short_url(brand.get("channels") or []):
+        return None
     if not product.get("available") or not product.get("id"):
         return None
 
