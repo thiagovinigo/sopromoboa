@@ -1,25 +1,32 @@
 import { MetadataRoute } from "next";
+import { getSitemapProducts } from "@/lib/server-api";
+import { SITE_URL, parseApiDate, productPath } from "@/lib/seo";
+
+export const revalidate = 3600;
+
+// Páginas privadas (favoritos, alertas, afiliados, admin) ficam de fora de propósito.
+const STATIC_ROUTES = [
+  "",
+  "/ofertas-relampago",
+  "/radar",
+  "/busca-personalizada",
+  "/lojas",
+  "/sobre-nos",
+  "/contato",
+  "/politica-de-privacidade",
+  "/termos-de-uso",
+];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://quepromo.com.br";
-
-  const staticRoutes = [
-    "",
-    "/ofertas-relampago",
-    "/radar",
-    "/busca-personalizada",
-    "/lojas",
-    "/favoritos",
-    "/sobre-nos",
-    "/contato",
-    "/politica-de-privacidade",
-    "/termos-de-uso",
-  ].map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date(),
-    changeFrequency: "hourly" as const,
-    priority: route === "" ? 1.0 : 0.8,
+  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
+    url: `${SITE_URL}${route}`,
   }));
 
-  return staticRoutes;
+  const products = await getSitemapProducts();
+  const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
+    url: `${SITE_URL}${productPath(product.id)}`,
+    lastModified: parseApiDate(product.last_updated),
+  }));
+
+  return [...staticEntries, ...productEntries];
 }

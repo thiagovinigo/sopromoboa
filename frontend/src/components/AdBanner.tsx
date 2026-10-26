@@ -48,20 +48,6 @@ export default function AdBanner({
     );
   }
 
-  // Placeholder elegante de pré-visualização (visível até você colar o seu pub-ID)
-  return (
-    <div
-      className={`w-full max-w-4xl mx-auto my-6 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-center flex flex-col items-center justify-center gap-1.5 transition-all ${className}`}
-    >
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-          Espaço Reservado • Google AdSense
-        </span>
-      </div>
-      <p className="text-[10px] text-gray-400">
-        Pronto para veicular anúncios automáticos e faturar em dólar assim que o domínio for aprovado.
-      </p>
-    </div>
-  );
+  // Sem slot configurado não há anúncio a exibir: não renderiza texto interno para o público
+  return null;
 }

@@ -5,15 +5,38 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Link from "next/link";
 import { Flame, Shield, Heart } from "lucide-react";
+import { SITE_NAME, SITE_URL, buildSiteJsonLd, serializeJsonLd } from "@/lib/seo";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
+const DEFAULT_TITLE = "Que Promo | Radar de Quedas de Preço & Ofertas Reais";
+const DEFAULT_DESCRIPTION =
+  "Monitore promoções que realmente baixaram de preço no Brasil. Histórico real, comparador entre lojas, alertas de desconto e links de afiliados auditados no quepromo.com.br.";
+
 export const metadata: Metadata = {
-  title: "Que Promo | Radar de Quedas de Preço & Ofertas Reais",
-  description: "Monitore promoções que realmente baixaram de preço no Brasil. Histórico real, comparador entre lojas, alertas de desconto e links de afiliados auditados no quepromo.com.br.",
+  metadataBase: new URL(SITE_URL),
+  title: DEFAULT_TITLE,
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  alternates: { canonical: "./" },
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "pt_BR",
+    url: "/",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: "summary",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+  },
   keywords: ["promoções", "descontos", "queda de preço", "radar de ofertas", "menor preço histórico", "ofertas amazon", "mercado livre", "magalu", "quepromo"],
   icons: {
     icon: [
@@ -50,6 +73,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased bg-[#080c14] text-gray-100 flex flex-col min-h-screen">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(buildSiteJsonLd()) }}
+        />
         <Header />
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {children}
@@ -84,7 +111,6 @@ export default function RootLayout({
                 <Link href="/contato" className="hover:text-white transition-colors">Contato & Suporte</Link>
                 <Link href="/politica-de-privacidade" className="hover:text-emerald-400 transition-colors">Política de Privacidade</Link>
                 <Link href="/termos-de-uso" className="hover:text-blue-400 transition-colors">Termos de Uso</Link>
-                <Link href="/admin" className="hover:text-purple-400 transition-colors opacity-75 hover:opacity-100">Painel Administrativo</Link>
               </div>
 
               <div className="text-center md:text-right">

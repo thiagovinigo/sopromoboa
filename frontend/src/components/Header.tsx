@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Flame, Link2, Sparkles, Store, Bot, Zap } from "lucide-react";
+import { Flame, Sparkles, Store, Bot, Zap } from "lucide-react";
 
 export default function Header() {
   return (
@@ -81,17 +81,6 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Action / Admin Discreet Access */}
-          <div className="flex items-center gap-2">
-            <Link
-              href="/admin"
-              title="Acesso Administrativo"
-              className="text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-white/[0.05] px-2.5 py-1.5 rounded-lg border border-white/[0.06] transition-all flex items-center gap-1.5"
-            >
-              <Link2 className="w-3 h-3 text-emerald-400" />
-              <span>Admin</span>
-            </Link>
-          </div>
         </div>
       </div>
     </header>

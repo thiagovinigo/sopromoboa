@@ -279,7 +279,7 @@ export default function DealCard({
           <a
             href={`${API_BASE}/r/${deal.id}`}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="sponsored nofollow noopener noreferrer"
             className="w-full text-xs font-bold text-white bg-rose-600 hover:bg-rose-500 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-sm"
           >
             Ver na Loja <ExternalLink className="w-3.5 h-3.5" />
