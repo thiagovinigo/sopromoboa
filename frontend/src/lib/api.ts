@@ -59,6 +59,31 @@ export interface AffiliateProgram {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
+const ADMIN_TOKEN_KEY = "sopromoboa_admin_token";
+
+export function getAdminToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(ADMIN_TOKEN_KEY);
+}
+
+export function setAdminToken(token: string): void {
+  sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+}
+
+export function clearAdminToken(): void {
+  sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+}
+
+/** fetch para rotas administrativas: anexa o token da sessão do painel. */
+function adminFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const token = getAdminToken();
+  const headers: Record<string, string> = {
+    ...((init.headers as Record<string, string> | undefined) ?? {}),
+    ...(token ? { "X-Admin-Token": token } : {}),
+  };
+  return fetch(input, { ...init, headers });
+}
+
 export async function fetchDeals(params: {
   q?: string;
   category?: string;
@@ -133,7 +158,7 @@ export async function fetchStores(): Promise<StoreItem[]> {
 
 export async function fetchAffiliates(): Promise<AffiliateProgram[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/affiliates`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/affiliates`, { cache: "no-store" });
     if (!res.ok) return [];
     return await res.json();
   } catch (err) {
@@ -147,7 +172,7 @@ export async function saveAffiliate(data: {
   tracking_id: string;
   commission_rate?: string;
 }) {
-  const res = await fetch(`${API_BASE}/api/affiliates`, {
+  const res = await adminFetch(`${API_BASE}/api/affiliates`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -166,7 +191,7 @@ export async function generateAffiliateLink(url: string, campaign?: string) {
 
 export async function fetchAdminDeals(): Promise<Deal[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/deals`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/admin/deals`, { cache: "no-store" });
     if (!res.ok) return [];
     return await res.json();
   } catch (err) {
@@ -190,7 +215,7 @@ export async function createAdminDeal(data: {
   free_shipping?: number;
 }): Promise<Deal | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/deals`, {
+    const res = await adminFetch(`${API_BASE}/api/admin/deals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -205,7 +230,7 @@ export async function createAdminDeal(data: {
 
 export async function deleteAdminDeal(productId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/deals/${productId}`, {
+    const res = await adminFetch(`${API_BASE}/api/admin/deals/${productId}`, {
       method: "DELETE",
     });
     return res.ok;
@@ -224,7 +249,7 @@ export interface AdminStats {
 
 export async function fetchAdminStats(): Promise<AdminStats | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/stats`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/admin/stats`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -267,7 +292,7 @@ export interface WorkerStatus {
 
 export async function fetchWorkerStatus(): Promise<WorkerStatus | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/worker/status`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/worker/status`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -277,12 +302,12 @@ export async function fetchWorkerStatus(): Promise<WorkerStatus | null> {
 }
 
 export async function triggerWorker() {
-  const res = await fetch(`${API_BASE}/api/worker/run`, { method: "POST" });
+  const res = await adminFetch(`${API_BASE}/api/worker/run`, { method: "POST" });
   return res.json();
 }
 
 export async function simulatePriceDrop() {
-  const res = await fetch(`${API_BASE}/api/worker/simulate-drop`, { method: "POST" });
+  const res = await adminFetch(`${API_BASE}/api/worker/simulate-drop`, { method: "POST" });
   return res.json();
 }
 
@@ -375,7 +400,7 @@ export async function fetchHunterStores(
     if (category && category !== "all") params.append("category", category);
     if (search) params.append("search", search);
 
-    const res = await fetch(`${API_BASE}/api/agent/hunter/stores?${params.toString()}`, {
+    const res = await adminFetch(`${API_BASE}/api/agent/hunter/stores?${params.toString()}`, {
       cache: "no-store",
     });
     if (!res.ok) throw new Error("Falha ao buscar lojas descobertas");
@@ -388,7 +413,7 @@ export async function fetchHunterStores(
 
 export async function fetchHunterStats(): Promise<HunterStats | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/agent/hunter/stats`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/agent/hunter/stats`, { cache: "no-store" });
     if (!res.ok) throw new Error("Falha ao buscar stats do hunter");
     return await res.json();
   } catch (err) {
@@ -398,7 +423,7 @@ export async function fetchHunterStats(): Promise<HunterStats | null> {
 }
 
 export async function runHunterCycle(): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/agent/hunter/run`, {
+  const res = await adminFetch(`${API_BASE}/api/agent/hunter/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });
@@ -407,7 +432,7 @@ export async function runHunterCycle(): Promise<any> {
 }
 
 export async function approveHunterStore(storeId: number): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/approve`, {
+  const res = await adminFetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/approve`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });
@@ -416,7 +441,7 @@ export async function approveHunterStore(storeId: number): Promise<any> {
 }
 
 export async function rejectHunterStore(storeId: number): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/reject`, {
+  const res = await adminFetch(`${API_BASE}/api/agent/hunter/stores/${storeId}/reject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });
@@ -425,7 +450,7 @@ export async function rejectHunterStore(storeId: number): Promise<any> {
 }
 
 export async function auditCustomStoreUrl(url: string, storeName?: string): Promise<any> {
-  const res = await fetch(`${API_BASE}/api/agent/hunter/audit`, {
+  const res = await adminFetch(`${API_BASE}/api/agent/hunter/audit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url, store_name: storeName }),
@@ -441,16 +466,17 @@ export async function authenticateAdmin(password: string): Promise<{ success: bo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
     });
+    if (res.status === 503) {
+      return { success: false, message: "Painel administrativo desativado no servidor." };
+    }
     if (!res.ok) {
       return { success: false, message: "Senha incorreta. Acesso não autorizado." };
     }
-    return await res.json();
+    const data = await res.json();
+    if (data.token) setAdminToken(data.token);
+    return data;
   } catch {
-    // Validação local de contingência caso o backend esteja oscilando
-    if (password === "!Thi5361206") {
-      return { success: true, token: "admin_local_verified", message: "Acesso autorizado." };
-    }
-    return { success: false, message: "Senha incorreta. Acesso não autorizado." };
+    return { success: false, message: "Não foi possível falar com o servidor. Tente novamente." };
   }
 }
 
@@ -488,7 +514,7 @@ export async function triggerLightningScan(): Promise<{
   total_active_lightning: number;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/api/deals/lightning/scan`, { method: "POST" });
+    const res = await adminFetch(`${API_BASE}/api/deals/lightning/scan`, { method: "POST" });
     if (!res.ok) throw new Error("Falha ao acionar robô");
     return await res.json();
   } catch (err) {
@@ -503,7 +529,7 @@ export async function triggerLightningScan(): Promise<{
 
 export async function fetchLightningRobotStatus(): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE}/api/deals/lightning/robot-status`, { cache: "no-store" });
+    const res = await adminFetch(`${API_BASE}/api/deals/lightning/robot-status`, { cache: "no-store" });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -513,7 +539,7 @@ export async function fetchLightningRobotStatus(): Promise<any> {
 
 export async function triggerLightningRobotRun(): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE}/api/deals/lightning/robot-run`, { method: "POST" });
+    const res = await adminFetch(`${API_BASE}/api/deals/lightning/robot-run`, { method: "POST" });
     return await res.json();
   } catch (err) {
     return { success: false, message: "Erro ao comunicar com o robô" };
@@ -531,7 +557,7 @@ export async function quickImportDeal(payload: {
   is_lightning?: boolean;
   is_featured?: boolean;
 }): Promise<Deal> {
-  const res = await fetch(`${API_BASE}/api/admin/quick-import`, {
+  const res = await adminFetch(`${API_BASE}/api/admin/quick-import`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

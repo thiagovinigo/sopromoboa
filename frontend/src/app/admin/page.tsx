@@ -64,11 +64,13 @@ import {
   rejectHunterStore,
   auditCustomStoreUrl,
   authenticateAdmin,
+  clearAdminToken,
+  getAdminToken,
   triggerLightningScan,
 } from "@/lib/api";
 
 export default function AdminPage() {
-  // Autenticação Mestra do Painel Admin (Senha: !Thi5361206)
+  // Autenticação do Painel Admin (senha validada no servidor; sessão por token assinado)
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authChecking, setAuthChecking] = useState<boolean>(true);
   const [passwordInput, setPasswordInput] = useState("");
@@ -138,7 +140,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? sessionStorage.getItem("sopromoboa_admin_auth") : null;
-    if (saved === "true") {
+    if (saved === "true" && getAdminToken()) {
       setIsAuthenticated(true);
       loadData();
       loadHunterData();
@@ -174,6 +176,7 @@ export default function AdminPage() {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("sopromoboa_admin_auth");
     }
+    clearAdminToken();
     setIsAuthenticated(false);
   };
 
@@ -464,7 +467,7 @@ export default function AdminPage() {
     );
   }
 
-  // TELA DE BLOQUEIO / LOGIN COM SENHA MESTRA (!Thi5361206)
+  // TELA DE BLOQUEIO / LOGIN DO ADMIN
   if (!isAuthenticated) {
     return (
       <div className="min-h-[75vh] flex items-center justify-center px-4 py-8">

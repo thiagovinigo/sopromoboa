@@ -14,7 +14,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "Criando pacote backend_deploy.tar.gz..." -ForegroundColor Cyan
-tar --exclude="venv" --exclude="__pycache__" --exclude=".pytest_cache" --exclude="*.log" --exclude="*.db-shm" --exclude="*.db-wal" -czf backend_deploy.tar.gz -C backend .
+tar --exclude="venv" --exclude="__pycache__" --exclude=".pytest_cache" --exclude="*.log" --exclude=".env" --exclude="*.db" --exclude="*.db-shm" --exclude="*.db-wal" -czf backend_deploy.tar.gz -C backend .
 
 Write-Host "Enviando para a VPS ($VPS_HOST)..." -ForegroundColor Cyan
 scp -i $VPS_KEY backend_deploy.tar.gz "$VPS_USER@$VPS_HOST`:$VPS_DIR/backend_deploy.tar.gz"
@@ -22,6 +22,6 @@ scp -i $VPS_KEY backend_deploy.tar.gz "$VPS_USER@$VPS_HOST`:$VPS_DIR/backend_dep
 Remove-Item -Force backend_deploy.tar.gz
 
 Write-Host "Extraindo e reiniciando servicos na VPS..." -ForegroundColor Cyan
-ssh -i $VPS_KEY -o BatchMode=yes "$VPS_USER@$VPS_HOST" "cd $VPS_DIR && tar -xzf backend_deploy.tar.gz && rm backend_deploy.tar.gz && cp -n .env.vps .env 2>/dev/null || true && cp docker-compose.vps.yml docker-compose.yml && docker compose restart api worker"
+ssh -i $VPS_KEY -o BatchMode=yes "$VPS_USER@$VPS_HOST" "cd $VPS_DIR && tar -xzf backend_deploy.tar.gz && rm backend_deploy.tar.gz && cp -n .env.vps .env 2>/dev/null || true && cp docker-compose.vps.yml docker-compose.yml && docker compose up -d api worker"
 
 Write-Host "Deploy concluido com sucesso!" -ForegroundColor Green

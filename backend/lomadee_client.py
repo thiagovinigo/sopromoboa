@@ -48,6 +48,11 @@ def get_api_key() -> Optional[str]:
     return key or None
 
 
+def get_links_api_key() -> Optional[str]:
+    """Chave só com escopo do encurtador (menor privilégio); cai na chave principal se não houver."""
+    return os.getenv("LOMADEE_LINKS_API_KEY", "").strip() or get_api_key()
+
+
 def _wait_for_request_slot() -> None:
     global _last_request_at
     with _rate_lock:
@@ -248,14 +253,15 @@ def _brand_ids_by_name(api_key: str) -> Dict[str, str]:
 
 def affiliate_link_for_product(store_name: str, product_url: str) -> Optional[str]:
     """Gera o link comissionado de um produto no clique; None se algo falhar (o chamador usa a URL direta)."""
-    api_key = get_api_key()
-    if not api_key:
+    catalog_key = get_api_key()
+    links_key = get_links_api_key()
+    if not catalog_key or not links_key:
         return None
     try:
-        organization_id = _brand_ids_by_name(api_key).get(store_name)
+        organization_id = _brand_ids_by_name(catalog_key).get(store_name)
         if not organization_id:
             return None
-        return create_short_link(api_key, organization_id, product_url, timeout=CLICK_TIMEOUT_SECONDS)
+        return create_short_link(links_key, organization_id, product_url, timeout=CLICK_TIMEOUT_SECONDS)
     except (requests.RequestException, RuntimeError, ValueError) as err:
         print(f"[Lomadee] Falha ao gerar link para {store_name}: {err}")
         return None

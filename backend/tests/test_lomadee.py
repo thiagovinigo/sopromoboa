@@ -134,3 +134,12 @@ def test_get_api_key_reads_environment(monkeypatch):
 
     monkeypatch.delenv("LOMADEE_API_KEY")
     assert lc.get_api_key() is None
+
+
+def test_links_api_key_prefers_the_dedicated_key_and_falls_back(monkeypatch):
+    monkeypatch.setenv("LOMADEE_API_KEY", "main")
+    monkeypatch.setenv("LOMADEE_LINKS_API_KEY", "links")
+    assert lc.get_links_api_key() == "links"
+
+    monkeypatch.delenv("LOMADEE_LINKS_API_KEY")
+    assert lc.get_links_api_key() == "main"

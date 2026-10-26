@@ -25,6 +25,8 @@ from scraper_worker import run_worker_once
 from store_hunter_agent import StoreHunterAgent
 from lightning_robot import run_lightning_robot_cycle, robot_status
 from lomadee_client import PRODUCT_ID_PREFIX, affiliate_link_for_product, is_short_link
+from admin_auth import admin_guard, check_password, create_admin_token, is_admin_configured
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Inicialização do banco de dados
 Base.metadata.create_all(bind=engine)
@@ -35,10 +37,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Protege as rotas administrativas (registrado antes do CORS para que as respostas 401/503 levem os cabeçalhos CORS)
+app.add_middleware(BaseHTTPMiddleware, dispatch=admin_guard)
+
 # Configuração de CORS
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1593,24 +1600,23 @@ def health_check():
 # ==========================================
 # AUTENTICAÇÃO DO PAINEL ADMINISTRATIVO
 # ==========================================
-ADMIN_MASTER_PASSWORD = os.getenv("ADMIN_PASSWORD", "!Thi5361206")
-
-
 class AdminAuthRequest(BaseModel):
     password: str
 
 
 @app.post("/api/admin/auth")
 def admin_auth(req: AdminAuthRequest):
-    """Valida a senha mestra para acesso seguro ao Painel Administrativo."""
-    if req.password == ADMIN_MASTER_PASSWORD:
-        return {
-            "success": True,
-            "authenticated": True,
-            "token": hashlib.sha256(ADMIN_MASTER_PASSWORD.encode()).hexdigest(),
-            "message": "Acesso concedido ao Painel Administrativo Só Promo Boa."
-        }
-    raise HTTPException(status_code=401, detail="Senha incorreta. Acesso negado ao painel administrativo.")
+    """Valida a senha do admin (variável ADMIN_PASSWORD) e devolve um token assinado com validade."""
+    if not is_admin_configured():
+        raise HTTPException(status_code=503, detail="Painel administrativo desativado.")
+    if not check_password(req.password):
+        raise HTTPException(status_code=401, detail="Senha incorreta. Acesso negado ao painel administrativo.")
+    return {
+        "success": True,
+        "authenticated": True,
+        "token": create_admin_token(),
+        "message": "Acesso concedido ao Painel Administrativo Que Promo."
+    }
 
 
 

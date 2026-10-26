@@ -14,6 +14,9 @@ services:
     volumes:
       - sopromoboa_data:/data
       - .:/app
+    env_file:
+      - path: .env
+        required: false
     command: >
       sh -c "if [ ! -f /data/sopromoboa.db ] && [ -f /app/sopromoboa.db ]; then
                echo 'Copiando banco inicial sopromoboa.db para /data...';
@@ -42,6 +45,9 @@ services:
     volumes:
       - sopromoboa_data:/data
       - .:/app
+    env_file:
+      - path: .env
+        required: false
     environment:
       - DATABASE_URL=sqlite:////data/sopromoboa.db
     entrypoint: >
