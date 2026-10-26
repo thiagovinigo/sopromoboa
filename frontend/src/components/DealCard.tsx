@@ -174,10 +174,10 @@ export default function DealCard({
         </Link>
       </div>
 
-      {/* Imagem do Produto */}
+      {/* Imagem do Produto com Fundo Claro para Máximo Contraste */}
       <Link
         href={`/produto/${deal.id}`}
-        className="block relative pt-[70%] bg-[#080d17] overflow-hidden"
+        className="block relative pt-[70%] bg-white overflow-hidden"
       >
         {deal.image_url && !imgError ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -185,13 +185,12 @@ export default function DealCard({
             src={deal.image_url}
             alt=""
             aria-label={deal.title}
-            referrerPolicy="no-referrer"
             onError={() => setImgError(true)}
-            className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+            className="absolute inset-0 w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center select-none bg-[#080d17]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center select-none bg-[#0a101d]">
             <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-1.5">
               <CategoryIconComponent className="w-5 h-5 text-gray-400" />
             </div>
