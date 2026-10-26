@@ -44,12 +44,16 @@ export async function getDealsPage(params: {
   limit: number;
   offset: number;
   sort?: string;
+  minDiscount?: number;
+  source?: string;
 }): Promise<DealsPage | null> {
   const query = new URLSearchParams({
     limit: String(params.limit),
     offset: String(params.offset),
     sort: params.sort ?? "recent",
   });
+  if (params.minDiscount) query.set("min_discount", String(params.minDiscount));
+  if (params.source) query.set("source", params.source);
   const res = await fetchFromApi(`/api/deals?${query.toString()}`);
   if (!res || !res.ok) return null;
   const total = parseInt(res.headers.get("X-Total-Count") || "0", 10);

@@ -97,7 +97,8 @@ CATEGORY_RULES = [
         "livros",
         [
             r"\bkindle\b", r"\blivro\b", r"\bbox trilogia\b", r"\bcapa dura\b",
-            r"\bhq\b", r"\bmang[aá]\b"
+            # "manga" de roupa (manga curta/longa...) não é mangá (quadrinhos)
+            r"\bhq\b", r"\bmang[aá]\b(?!\s+(?:curta|longa|3/4|comprida|princesa|sino|bufante|bal[aã]o|morcego|raglan|ciganinha|flare))"
         ]
     ),
 ]

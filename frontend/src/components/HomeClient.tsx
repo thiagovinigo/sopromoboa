@@ -30,6 +30,7 @@ import { fetchFavoriteIds } from "@/lib/favorites";
 interface HomeClientProps {
   initialDeals: Deal[];
   initialTotal: number;
+  initialSort: "featured" | "recent";
   initialCategories: CategoryItem[];
   initialStores: StoreItem[];
 }
@@ -37,6 +38,7 @@ interface HomeClientProps {
 export default function HomeClient({
   initialDeals,
   initialTotal,
+  initialSort,
   initialCategories,
   initialStores,
 }: HomeClientProps) {
@@ -52,7 +54,8 @@ export default function HomeClient({
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [activeStore, setActiveStore] = useState<string>("");
   const [onlyDrops, setOnlyDrops] = useState<boolean>(false);
-  const [sort, setSort] = useState<string>("recent");
+  // "featured" é a vitrine variada montada no servidor; só vale para a primeira página sem filtros
+  const [sort, setSort] = useState<string>(initialSort);
   const [page, setPage] = useState(0);
   const pageSize = 20;
 
@@ -87,7 +90,7 @@ export default function HomeClient({
         category: activeCategory || undefined,
         source: activeStore || undefined,
         only_drops: onlyDrops,
-        sort: sort,
+        sort: sort === "featured" ? "recent" : sort,
         limit: pageSize,
         offset: page * pageSize,
       });
@@ -129,7 +132,7 @@ export default function HomeClient({
           </h1>
 
           <p className="text-gray-400 text-xs sm:text-sm max-w-lg mx-auto leading-relaxed">
-            Varremos continuamente grandes lojas como Amazon, Mercado Livre e Magalu para alertar apenas quedas de preço comprovadas.
+            Reunimos ofertas de dezenas de lojas, como a Shopee e marcas parceiras, e mostramos o preço de lista e o preço atual informados pela loja para você comparar.
           </p>
 
           {/* Barra de Busca Flutuante e Limpa */}
@@ -155,7 +158,7 @@ export default function HomeClient({
           {/* Badges de Confiança */}
           <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-[11px] text-gray-400">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Histórico auditado
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Preços monitorados
             </span>
             <span className="flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-amber-400" /> Quedas em tempo real
@@ -305,6 +308,7 @@ export default function HomeClient({
                 }}
                 className="bg-[#080c14] border border-white/10 text-white text-xs font-medium rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-rose-500"
               >
+                <option value="featured">Destaques</option>
                 <option value="recent">Mais Recentes</option>
                 <option value="drop_desc">Maior Queda de Preço</option>
                 <option value="discount_desc">Maior % de Desconto</option>
