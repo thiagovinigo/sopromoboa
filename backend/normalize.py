@@ -181,8 +181,12 @@ def normalize_listing(raw: Dict[str, Any]) -> Dict[str, Any]:
     category = raw.get("category") or detect_category(title)
     brand = raw.get("brand") or detect_brand(title)
     
-    # Gera link comissionado se não fornecido
-    affiliate_url = raw.get("affiliate_url") or build_affiliate_url(url, store_slug=source.lower())
+    # Gera link comissionado se não fornecido. O domínio do link manda: o nome da loja pode ter espaços
+    # ("Mercado Livre") e não bater com a chave da rede ("mercadolivre"), deixando o link sem a tag.
+    store_slug = detect_store_from_url(url)
+    if store_slug == "outros":
+        store_slug = source.lower()
+    affiliate_url = raw.get("affiliate_url") or build_affiliate_url(url, store_slug=store_slug)
 
     # Desconto
     discount = calculate_discount_percent(price, list_price=list_price)

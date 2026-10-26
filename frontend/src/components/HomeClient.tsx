@@ -27,10 +27,17 @@ import {
 } from "@/lib/api";
 import { fetchFavoriteIds } from "@/lib/favorites";
 
+export interface ShowcaseSection {
+  store: string;
+  total: number;
+  deals: Deal[];
+}
+
 interface HomeClientProps {
   initialDeals: Deal[];
   initialTotal: number;
   initialSort: "featured" | "recent";
+  showcase: ShowcaseSection[];
   initialCategories: CategoryItem[];
   initialStores: StoreItem[];
 }
@@ -39,6 +46,7 @@ export default function HomeClient({
   initialDeals,
   initialTotal,
   initialSort,
+  showcase,
   initialCategories,
   initialStores,
 }: HomeClientProps) {
@@ -116,6 +124,9 @@ export default function HomeClient({
   };
 
   const totalPages = Math.ceil(total / pageSize);
+  // A vitrine das lojas grandes só aparece na visão inicial, sem filtro, busca ou paginação
+  const showShowcase =
+    showcase.length > 0 && !activeStore && !activeCategory && !search.trim() && !onlyDrops && page === 0;
 
   return (
     <div className="space-y-6">
@@ -169,6 +180,37 @@ export default function HomeClient({
           </div>
         </div>
       </section>
+
+      {/* Vitrines das lojas grandes: links de afiliado próprios, preço informado pela loja ou pela comunidade */}
+      {showShowcase &&
+        showcase.map((section) => (
+          <section key={section.store} className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Store className="w-5 h-5 text-rose-500" />
+                Ofertas {section.store}
+              </h2>
+              {/* <a> e não <Link>: o filtro por loja é lido da URL ao carregar a página */}
+              <a
+                href={`/?source=${encodeURIComponent(section.store)}`}
+                className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors"
+              >
+                Ver todas ({section.total})
+              </a>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+              {section.deals.map((deal) => (
+                <DealCard key={deal.id} deal={deal} />
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500">
+              {section.store === "Amazon"
+                ? "Como Associado da Amazon, o Que Promo ganha com compras qualificadas. "
+                : "O Que Promo pode receber comissão pelas compras feitas pelos links. "}
+              Preços informados pela loja ou pela comunidade; confirme o valor final no site da loja.
+            </p>
+          </section>
+        ))}
 
       {/* Banner de Engajamento: Canal de Ofertas no Telegram (Zero Risco Anti-Ban) */}
       <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-[#0a1220] to-blue-950/40 shadow-lg shadow-cyan-950/20">

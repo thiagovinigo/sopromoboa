@@ -21,6 +21,27 @@ def test_build_magalu_affiliate_url():
     assert "parceiro=minhaloja" in tagged
 
 
+def test_normalize_listing_tags_by_domain_even_when_the_store_name_has_spaces():
+    from normalize import normalize_listing
+
+    ml = normalize_listing({
+        "id": "x1", "title": "Fone", "price": 100.0, "source": "Mercado Livre",
+        "url": "https://produto.mercadolivre.com.br/MLB-123-fone",
+    })
+    amazon = normalize_listing({
+        "id": "x2", "title": "Fone", "price": 100.0, "source": "Amazon",
+        "url": "https://www.amazon.com.br/dp/B0CHX1W1XY",
+    })
+    other = normalize_listing({
+        "id": "x3", "title": "Sofá", "price": 100.0, "source": "Sofá na Caixa",
+        "url": "https://www.sofanacaixa.com.br/p/1",
+    })
+
+    assert "matt_tool=" in ml["affiliate_url"]
+    assert "tag=" in amazon["affiliate_url"]
+    assert "matt_tool=" not in other["affiliate_url"] and "tag=" not in other["affiliate_url"]
+
+
 def test_create_managed_link():
     res = create_managed_link("https://www.amazon.com.br/dp/B0CHX1W1XY")
     assert res["store"] == "amazon"

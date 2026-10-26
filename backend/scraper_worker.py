@@ -16,6 +16,8 @@ import datetime
 import concurrent.futures
 from typing import List, Dict, Any
 
+from sqlalchemy import or_
+
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -33,9 +35,12 @@ from lomadee_client import PRODUCT_ID_PREFIX as LOMADEE_ID_PREFIX, is_short_link
 from shopee_feed import PRODUCT_ID_PREFIX as SHOPEE_FEED_ID_PREFIX
 
 # Scrapers de catálogo completo: o item que some do catálogo sai do ar. Valor = prefixo de id do scraper.
-RETIRING_SCRAPERS = {"Lomadee": LOMADEE_ID_PREFIX, "Shopee Feed": SHOPEE_FEED_ID_PREFIX}
+GATRY_ID_PREFIX = "gatry_"
+RETIRING_SCRAPERS = {"Lomadee": LOMADEE_ID_PREFIX, "Shopee Feed": SHOPEE_FEED_ID_PREFIX, "Gatry": GATRY_ID_PREFIX}
 # Itens desses scrapers chegam sem histórico de preço: não ganham "menor preço" no primeiro registro.
-NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX)
+NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX, GATRY_ID_PREFIX)
+# Varredura quase vazia = provável falha parcial da fonte: não retira o catálogo inteiro por causa dela.
+MIN_ITEMS_TO_RETIRE = 20
 
 # Garante a criação de todas as tabelas
 Base.metadata.create_all(bind=engine)
@@ -68,10 +73,28 @@ def discover_scrapers() -> List[Dict[str, Any]]:
     return scrapers
 
 
+# Fontes descontinuadas e links que pagam comissão a terceiros saem do catálogo a cada ciclo.
+DISCONTINUED_ID_PREFIXES = ("ml_",)
+THIRD_PARTY_LINK_MARKERS = ("meli.la", "link.amazon", "amzn.to", "amzn.com")
+
+
+def retire_discontinued_items(db) -> int:
+    conditions = [ProductModel.id.startswith(prefix, autoescape=True) for prefix in DISCONTINUED_ID_PREFIXES]
+    for marker in THIRD_PARTY_LINK_MARKERS:
+        conditions.append(ProductModel.url.contains(marker, autoescape=True))
+        conditions.append(ProductModel.affiliate_url.contains(marker, autoescape=True))
+
+    retired = db.query(ProductModel).filter(ProductModel.is_available == 1, or_(*conditions)).update(
+        {"is_available": 0}, synchronize_session=False
+    )
+    db.commit()
+    return retired
+
+
 def retire_missing_products(db, store_info: Dict[str, Any], seen_ids: List[str]) -> int:
     """Marca como indisponíveis os itens de um scraper de catálogo que sumiram na última varredura."""
     prefix = RETIRING_SCRAPERS.get(store_info["name"])
-    if not prefix or not seen_ids:
+    if not prefix or len(seen_ids) < MIN_ITEMS_TO_RETIRE:
         return 0
 
     seen = set(seen_ids)
@@ -256,6 +279,14 @@ def run_worker_once() -> Dict[str, Any]:
     print("\n=======================================================")
     print(f"[SO PROMO BOA WORKER] Iniciando varredura com {len(scrapers)} scrapers ativos...")
     print("=======================================================")
+
+    cleanup_db = SessionLocal()
+    try:
+        retired = retire_discontinued_items(cleanup_db)
+        if retired:
+            print(f"[Worker] {retired} itens de fontes descontinuadas ou com link de terceiros foram retirados.")
+    finally:
+        cleanup_db.close()
 
     start_time = time.time()
     total_stats = {"inserted": 0, "updated": 0, "price_drops": 0, "alerts_triggered": 0}

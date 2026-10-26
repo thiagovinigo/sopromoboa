@@ -1,4 +1,4 @@
-import HomeClient from "@/components/HomeClient";
+import HomeClient, { ShowcaseSection } from "@/components/HomeClient";
 import type { Deal, StoreItem } from "@/lib/api";
 import { pickFeatured } from "@/lib/featured";
 import { getCategories, getDealsPage, getStores } from "@/lib/server-api";
@@ -27,6 +27,34 @@ async function fetchFeaturedPool(stores: StoreItem[]): Promise<Deal[]> {
   return pages.flatMap((page) => page?.items ?? []);
 }
 
+// Lojas grandes ganham uma vitrine própria, desde que tenham ofertas suficientes para preencher uma linha.
+const SHOWCASE_STORES = ["Amazon", "Mercado Livre", "Magazine Luiza", "KaBuM!"];
+const SHOWCASE_MIN_DEALS = 4;
+const SHOWCASE_FETCH = 16;
+const SHOWCASE_SIZE = 4;
+
+async function fetchShowcase(stores: StoreItem[]): Promise<ShowcaseSection[]> {
+  const eligible = SHOWCASE_STORES.map((name) => stores.find((store) => store.name === name)).filter(
+    (store): store is StoreItem => Boolean(store) && (store as StoreItem).total_deals >= SHOWCASE_MIN_DEALS
+  );
+
+  const sections = await Promise.all(
+    eligible.map(async (store) => {
+      // Quedas de preço confirmadas primeiro; o restante vem das ofertas mais recentes da loja.
+      const [drops, recent] = await Promise.all([
+        getDealsPage({ limit: SHOWCASE_SIZE, offset: 0, source: store.name, onlyDrops: true }),
+        getDealsPage({ limit: SHOWCASE_FETCH, offset: 0, source: store.name }),
+      ]);
+      const unique = new Map<string, Deal>();
+      for (const deal of [...(drops?.items ?? []), ...(recent?.items ?? [])]) {
+        if (deal.image_url && !unique.has(deal.id)) unique.set(deal.id, deal);
+      }
+      return { store: store.name, total: store.total_deals, deals: Array.from(unique.values()).slice(0, SHOWCASE_SIZE) };
+    })
+  );
+  return sections.filter((section) => section.deals.length >= SHOWCASE_MIN_DEALS);
+}
+
 export default async function HomePage() {
   const [recent, categories, stores] = await Promise.all([
     getDealsPage({ limit: HOME_PAGE_SIZE, offset: 0 }),
@@ -34,7 +62,7 @@ export default async function HomePage() {
     getStores(),
   ]);
 
-  const pool = await fetchFeaturedPool(stores ?? []);
+  const [pool, showcase] = await Promise.all([fetchFeaturedPool(stores ?? []), fetchShowcase(stores ?? [])]);
   const featured = pickFeatured(pool, HOME_PAGE_SIZE);
   const useFeatured = featured.length >= HOME_PAGE_SIZE / 2;
 
@@ -43,6 +71,7 @@ export default async function HomePage() {
       initialDeals={useFeatured ? featured : recent?.items ?? []}
       initialTotal={recent?.total ?? 0}
       initialSort={useFeatured ? "featured" : "recent"}
+      showcase={showcase}
       initialCategories={categories ?? []}
       initialStores={stores ?? []}
     />
