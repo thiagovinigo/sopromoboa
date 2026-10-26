@@ -62,3 +62,13 @@ def test_all_time_low():
     assert is_all_time_low(500.0, 500.0) is True
     assert is_all_time_low(490.0, 500.0) is True
     assert is_all_time_low(550.0, 500.0) is False
+
+
+def test_no_all_time_low_without_price_history():
+    assert is_all_time_low(59.0, None) is False
+
+
+def test_lightning_flag_is_off_by_default():
+    import feature_flags
+
+    assert feature_flags.LIGHTNING_ENABLED is False

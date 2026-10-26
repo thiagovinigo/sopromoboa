@@ -24,6 +24,7 @@ from normalize import clean_title, detect_category, detect_brand
 from scraper_worker import run_worker_once
 from store_hunter_agent import StoreHunterAgent
 from lightning_robot import run_lightning_robot_cycle, robot_status
+from lomadee_client import PRODUCT_ID_PREFIX, affiliate_link_for_product, is_short_link
 
 # Inicialização do banco de dados
 Base.metadata.create_all(bind=engine)
@@ -746,6 +747,21 @@ def worker_search_deals(
 # ==========================================
 # ENDPOINT DE REDIRECIONAMENTO COMISSIONADO
 # ==========================================
+def redirect_lomadee_product(product: ProductModel, db: Session) -> RedirectResponse:
+    """Produtos da Lomadee: gera o link comissionado no primeiro clique e o guarda para os próximos."""
+    if is_short_link(product.affiliate_url):
+        link = product.affiliate_url
+    else:
+        link = affiliate_link_for_product(product.source, product.url)
+        if link:
+            product.affiliate_url = link
+            try:
+                db.commit()
+            except Exception:
+                db.rollback()
+    return RedirectResponse(url=link or product.url, status_code=307)
+
+
 @app.get("/r/{product_id}")
 def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
     """Redirecionamento rastreado com tag de afiliado para a loja original."""
@@ -768,8 +784,11 @@ def redirect_to_deal(product_id: str, db: Session = Depends(get_db)):
     except Exception:
         pass
 
+    if product_id.startswith(PRODUCT_ID_PREFIX):
+        return redirect_lomadee_product(product, db)
+
     # Sempre priorizar link direto de produto caso o affiliate_url seja busca ou genérico
-    has_direct_url = product.url and any(d in product.url for d in ["/dp/", "/gp/product/", "/p/", "/produto/", "meli.la", "shopee.com.br/product", "s.shopee.com.br"])
+    has_direct_url =product.url and any(d in product.url for d in ["/dp/", "/gp/product/", "/p/", "/produto/", "meli.la", "shopee.com.br/product", "s.shopee.com.br"])
     is_aff_search = any(s in (product.affiliate_url or "") for s in ["s?k=", "lista.mercadolivre", "/busca/", "/search"])
     
     if has_direct_url and (not product.affiliate_url or is_aff_search):

@@ -98,7 +98,10 @@ def calculate_discount_percent(
 
 
 def is_all_time_low(price: float, lowest_historic_price: Optional[float]) -> bool:
-    """Retorna True se o preço atual é igual ou menor ao menor preço histórico registrado."""
+    """Retorna True se o preço atual é igual ou menor ao menor preço histórico registrado.
+
+    Sem histórico registrado não há como afirmar "menor preço": retorna False.
+    """
     if not lowest_historic_price or lowest_historic_price <= 0:
-        return True
+        return False
     return price <= (lowest_historic_price + 0.05)

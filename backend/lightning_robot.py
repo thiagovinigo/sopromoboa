@@ -15,6 +15,7 @@ from typing import Dict, Any
 
 from database import SessionLocal
 from models import ProductModel, PriceHistoryModel, AffiliateProgramModel
+from feature_flags import LIGHTNING_ENABLED
 from scraper_worker import run_worker_once
 
 # Estado global do robô autônomo acessível via API
@@ -157,8 +158,19 @@ def prune_expired_lightning_deals(db) -> int:
     return pruned_count
 
 
+def clear_lightning_flags(db) -> int:
+    """Remove o selo relâmpago de todos os produtos (usado enquanto a funcionalidade está desligada)."""
+    cleared = db.query(ProductModel).filter(ProductModel.is_lightning_deal == 1).update(
+        {"is_lightning_deal": 0}, synchronize_session=False
+    )
+    db.commit()
+    return cleared
+
+
 def promote_super_discounts_to_lightning(db) -> int:
     """Promove automaticamente para Ofertas Relâmpago os produtos com desconto >= 25% e flagships com LINK DIRETO de produto."""
+    if not LIGHTNING_ENABLED:
+        return 0
     promoted_count = 0
 
     # 1. Itens disponíveis com desconto real >= 25% E com link direto (sem páginas filtradas/busca e sem Unsplash)
@@ -238,7 +250,7 @@ def run_lightning_robot_cycle() -> Dict[str, Any]:
         enforce_shopee_affiliate_tag(db)
 
         # 3. Exclui da vitrine itens que perderam o desconto ou expiraram
-        pruned = prune_expired_lightning_deals(db)
+        pruned = prune_expired_lightning_deals(db) if LIGHTNING_ENABLED else clear_lightning_flags(db)
 
         # 4. Promove novos super descontos para Ofertas Relâmpago
         promoted = promote_super_discounts_to_lightning(db)

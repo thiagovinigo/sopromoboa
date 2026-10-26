@@ -28,6 +28,8 @@ from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, Affi
 from normalize import normalize_listing
 from pricing import apply_price_change, is_price_drop_active, calculate_discount_percent
 from affiliate import build_affiliate_url
+from feature_flags import LIGHTNING_ENABLED
+from lomadee_client import PRODUCT_ID_PREFIX, is_short_link
 
 # Garante a criação de todas as tabelas
 Base.metadata.create_all(bind=engine)
@@ -58,6 +60,24 @@ def discover_scrapers() -> List[Dict[str, Any]]:
                 print(f"[Worker] Erro ao carregar scraper de {filename}: {e}")
 
     return scrapers
+
+
+def retire_missing_lomadee_products(db, store_info: Dict[str, Any], seen_ids: List[str]) -> int:
+    """Marca como indisponíveis os itens da Lomadee que sumiram do catálogo na última varredura."""
+    if store_info["name"] != "Lomadee" or not seen_ids:
+        return 0
+
+    seen = set(seen_ids)
+    rows = db.query(ProductModel.id).filter(
+        ProductModel.id.startswith(PRODUCT_ID_PREFIX, autoescape=True),
+        ProductModel.is_available == 1,
+    ).all()
+    stale = [product_id for (product_id,) in rows if product_id not in seen]
+    for start in range(0, len(stale), 500):
+        db.query(ProductModel).filter(ProductModel.id.in_(stale[start:start + 500])).update(
+            {"is_available": 0}, synchronize_session=False
+        )
+    return len(stale)
 
 
 def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, Any]]) -> Dict[str, int]:
@@ -133,7 +153,7 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                     list_price=item.get("list_price") or db_prod.list_price,
                     previous_price=db_prod.previous_price
                 )
-                if db_prod.discount_percent >= 25.0:
+                if LIGHTNING_ENABLED and db_prod.discount_percent >= 25.0:
                     db_prod.is_lightning_deal = 1
 
                 # Atualiza metadados
@@ -142,7 +162,8 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                 db_prod.category = item["category"]
                 db_prod.brand = item.get("brand") or db_prod.brand
                 db_prod.image_url = item.get("image_url") or db_prod.image_url
-                db_prod.affiliate_url = item["affiliate_url"]
+                if not is_short_link(db_prod.affiliate_url):  # preserva o link comissionado já gerado
+                    db_prod.affiliate_url = item["affiliate_url"]
                 db_prod.coupon_code = item.get("coupon_code") or db_prod.coupon_code
                 db_prod.free_shipping = item.get("free_shipping", 0)
                 db_prod.is_available = 1
@@ -151,14 +172,16 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                 stats["updated"] += 1
             else:
                 # Novo produto descoberto
-                is_lightning = 1 if item["discount_percent"] >= 25.0 else 0
+                is_lightning = 1 if LIGHTNING_ENABLED and item["discount_percent"] >= 25.0 else 0
+                # Itens da Lomadee chegam sem histórico: sem "menor preço" até haver variação real observada
+                first_lowest_price = None if product_id.startswith(PRODUCT_ID_PREFIX) else item["price"]
                 new_prod = ProductModel(
                     id=product_id,
                     title=item["title"],
                     price=item["price"],
                     list_price=item.get("list_price"),
                     previous_price=None,
-                    lowest_historic_price=item["price"],
+                    lowest_historic_price=first_lowest_price,
                     price_dropped=0,
                     discount_percent=item["discount_percent"],
                     brand=item.get("brand"),
@@ -193,15 +216,21 @@ def process_scraped_items(store_info: Dict[str, Any], raw_items: List[Dict[str, 
                             stats["alerts_triggered"] += 1
                             print(f"[ALERTA DISPARADO] Oferta '{item['title']}' atingiu R$ {item['price']} (Desconto: {item['discount_percent']}%)!")
 
-        # Atualiza métricas da loja
-        source_name = raw_items[0].get("source", store_info["name"]) if raw_items else store_info["name"]
-        store_entry = db.query(StoreModel).filter(StoreModel.name == source_name).first()
-        if not store_entry:
-            slug = source_name.lower().replace(" ", "_")
-            store_entry = StoreModel(slug=slug, name=source_name, is_active=1)
-            db.add(store_entry)
-        
-        store_entry.total_deals = db.query(ProductModel).filter(ProductModel.source == source_name, ProductModel.is_available == 1).count()
+        retired = retire_missing_lomadee_products(db, store_info, scraped_ids)
+        if retired:
+            print(f"[Worker] {retired} itens da Lomadee marcados como indisponíveis.")
+        db.flush()
+
+        # Atualiza métricas de cada loja do lote (a Lomadee entrega várias lojas de uma vez)
+        source_names = {raw.get("source", store_info["name"]) for raw in raw_items} or {store_info["name"]}
+        for source_name in sorted(source_names):
+            store_entry = db.query(StoreModel).filter(StoreModel.name == source_name).first()
+            if not store_entry:
+                slug = source_name.lower().replace(" ", "_")
+                store_entry = StoreModel(slug=slug, name=source_name, is_active=1)
+                db.add(store_entry)
+
+            store_entry.total_deals = db.query(ProductModel).filter(ProductModel.source == source_name, ProductModel.is_available == 1).count()
 
         db.commit()
     except Exception as e:
