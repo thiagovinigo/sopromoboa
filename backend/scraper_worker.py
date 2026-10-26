@@ -16,7 +16,7 @@ import datetime
 import concurrent.futures
 from typing import List, Dict, Any
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
@@ -89,6 +89,31 @@ def retire_discontinued_items(db) -> int:
     )
     db.commit()
     return retired
+
+
+def clear_unproven_lowest_prices(db) -> int:
+    """Itens de catálogo com um único registro de preço não têm 'menor preço histórico' a afirmar.
+
+    Corrige linhas gravadas antes da regra (o primeiro preço era gravado como menor preço). Itens com mais de
+    um ponto de preço, ou seja, com variação realmente observada, mantêm o valor.
+    """
+    price_points = (
+        db.query(PriceHistoryModel.product_id)
+        .group_by(PriceHistoryModel.product_id)
+        .having(func.count(PriceHistoryModel.id) > 1)
+    )
+    catalog_ids = [ProductModel.id.startswith(prefix, autoescape=True) for prefix in NO_HISTORY_PREFIXES]
+    cleared = (
+        db.query(ProductModel)
+        .filter(
+            or_(*catalog_ids),
+            ProductModel.lowest_historic_price.isnot(None),
+            ~ProductModel.id.in_(price_points),
+        )
+        .update({"lowest_historic_price": None}, synchronize_session=False)
+    )
+    db.commit()
+    return cleared
 
 
 def retire_missing_products(db, store_info: Dict[str, Any], seen_ids: List[str]) -> int:
@@ -285,6 +310,9 @@ def run_worker_once() -> Dict[str, Any]:
         retired = retire_discontinued_items(cleanup_db)
         if retired:
             print(f"[Worker] {retired} itens de fontes descontinuadas ou com link de terceiros foram retirados.")
+        cleared = clear_unproven_lowest_prices(cleanup_db)
+        if cleared:
+            print(f"[Worker] 'menor preço' sem histórico removido de {cleared} itens.")
     finally:
         cleanup_db.close()
 

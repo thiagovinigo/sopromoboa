@@ -44,6 +44,26 @@ def test_discontinued_prefixes_and_third_party_links_are_retired(db):
     assert available_ids(db) == ["gatry_ok", "lmd_ok"]
 
 
+def test_unproven_lowest_price_is_cleared_only_for_catalog_items_with_a_single_price_point(db):
+    from models import PriceHistoryModel
+
+    for product_id in ("gatry_single", "gatry_history", "legacy_item"):
+        add(db, product_id, "https://www.amazon.com.br/dp/B1")
+    for product in db.query(ProductModel).all():
+        product.lowest_historic_price = 10.0
+    db.add(PriceHistoryModel(product_id="gatry_single", price=10.0))
+    db.add(PriceHistoryModel(product_id="gatry_history", price=12.0))
+    db.add(PriceHistoryModel(product_id="gatry_history", price=10.0))  # queda real observada
+    db.add(PriceHistoryModel(product_id="legacy_item", price=10.0))
+    db.commit()
+
+    cleared = worker.clear_unproven_lowest_prices(db)
+
+    lowest = {p.id: p.lowest_historic_price for p in db.query(ProductModel).all()}
+    assert cleared == 1
+    assert lowest == {"gatry_single": None, "gatry_history": 10.0, "legacy_item": 10.0}
+
+
 def test_retire_discontinued_items_is_idempotent(db):
     add(db, "ml_x", "https://www.mercadolivre.com.br/p/MLB1")
     db.commit()
