@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Flame, ShieldCheck, Zap, Bot, ArrowLeft } from "lucide-react";
+import { Flame, ShieldCheck, Bot, ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Sobre Nós | Que Promo",
@@ -52,12 +52,6 @@ export default function SobreNosPage() {
             <ShieldCheck className="w-6 h-6 text-emerald-400" />
             <h3 className="font-bold text-white text-base">Auditoria Histórica</h3>
             <p className="text-xs text-gray-400">Identificação clara do menor preço apurado para você comprar apenas no momento certo.</p>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] space-y-2">
-            <Zap className="w-6 h-6 text-amber-400" />
-            <h3 className="font-bold text-white text-base">Ofertas Relâmpago</h3>
-            <p className="text-xs text-gray-400">Vitrine dedicada com descontos a partir de 25% verificados em itens de alta demanda.</p>
           </div>
         </div>
 

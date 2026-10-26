@@ -167,38 +167,6 @@ export default function HomeClient({
         </div>
       </section>
 
-      {/* Banner de Destaque das Ofertas Relâmpago & Nichos que Mais Faturam */}
-      <Link
-        href="/ofertas-relampago"
-        className="block group relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-[#0d131f] to-rose-500/10 hover:border-amber-500/50 transition-all shadow-lg hover:shadow-amber-500/10"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-amber-500/20">
-              <Zap className="w-6 h-6 fill-amber-400 text-amber-400 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-extrabold text-base text-white group-hover:text-amber-300 transition-colors">
-                  ⚡ Central de Ofertas Relâmpago & Super Descontos
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-black uppercase tracking-wider">
-                  3.800+ Ofertas Auditadas
-                </span>
-              </div>
-              <p className="text-xs text-gray-300 mt-0.5">
-                Fire TV Stick, Alexa Echo, Creatina Creapure, Air Fryer, iPhone 15 e os nichos mais vendidos com <strong>25% a 70% OFF</strong>.
-              </p>
-            </div>
-          </div>
-
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black shrink-0 self-start sm:self-center transition-all shadow-md shadow-amber-500/30 group-hover:scale-105">
-            <span>Ver Ofertas Relâmpago</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
-      </Link>
-
       {/* Banner de Engajamento: Canal de Ofertas no Telegram (Zero Risco Anti-Ban) */}
       <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border border-cyan-500/30 bg-gradient-to-r from-cyan-950/40 via-[#0a1220] to-blue-950/40 shadow-lg shadow-cyan-950/20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -214,7 +182,7 @@ export default function HomeClient({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-extrabold text-base text-white">
-                  📢 Canal VIP no Telegram • Bugs de Preço & Ofertas Relâmpago
+                  📢 Canal VIP no Telegram • Bugs de Preço & Ofertas
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase tracking-wider">
                   100% Gratuito

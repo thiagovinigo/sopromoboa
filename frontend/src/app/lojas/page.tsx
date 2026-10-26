@@ -29,7 +29,7 @@ const STORE_METADATA: Record<
   amazon: {
     description:
       "Líder global com entrega rápida Prime, catálogo completo de eletrônicos, Kindles, informática e importados.",
-    highlights: ["Frete Grátis com Prime", "Ofertas Relâmpago Diárias", "Garantia A a Z"],
+    highlights: ["Frete Grátis com Prime", "Ofertas Diárias", "Garantia A a Z"],
     officialUrl: "https://www.amazon.com.br?tag=thiagovinigo-20&utm_source=quepromo",
     bgGradient: "from-amber-950/30 to-gray-900/90",
     badgeColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
@@ -64,7 +64,7 @@ const STORE_METADATA: Record<
   },
   shopee: {
     description:
-      "Marketplace com cupons de frete grátis sem valor mínimo, grandes marcas oficiais e ofertas relâmpago.",
+      "Marketplace com cupons de frete grátis sem valor mínimo, grandes marcas oficiais e ofertas diárias.",
     highlights: ["Cupons de Frete Grátis", "Shopee Oficial Grandes Marcas", "Moedas de Desconto"],
     officialUrl: "https://shopee.com.br?utm_source=sopromoboa",
     bgGradient: "from-rose-950/30 to-gray-900/90",

@@ -7,7 +7,6 @@ export const revalidate = 3600;
 // Páginas privadas (favoritos, alertas, afiliados, admin) ficam de fora de propósito.
 const STATIC_ROUTES = [
   "",
-  "/ofertas-relampago",
   "/radar",
   "/busca-personalizada",
   "/lojas",
