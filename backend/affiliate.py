@@ -58,9 +58,24 @@ def build_affiliate_url(
         store_slug = detect_store_from_url(original_url)
 
     try:
-        # Se já for um shortlink de afiliado da Shopee ou Mercado Livre, preserva o link
+        # Se for um shortlink da Shopee, desempacota para link canônico direto e remove tag de terceiros
         if "s.shopee.com.br" in original_url or "shope.ee" in original_url:
-            return original_url
+            try:
+                import requests, re
+                resp = requests.get(original_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}, timeout=5, allow_redirects=True)
+                final_u = resp.url
+                m_i = re.search(r'-i\.(\d+)\.(\d+)', final_u)
+                m_p = re.search(r'/product/(\d+)/(\d+)', final_u)
+                if m_i:
+                    original_url = f"https://shopee.com.br/product/{m_i.group(1)}/{m_i.group(2)}"
+                elif m_p:
+                    original_url = f"https://shopee.com.br/product/{m_p.group(1)}/{m_p.group(2)}"
+                else:
+                    clean_b = final_u.split("?")[0]
+                    if "login" not in clean_b and "verify" not in clean_b:
+                        original_url = clean_b
+            except Exception:
+                pass
 
         parsed = urlparse(original_url)
         params = parse_qs(parsed.query)
