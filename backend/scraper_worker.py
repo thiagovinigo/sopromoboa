@@ -33,12 +33,18 @@ from affiliate import build_affiliate_url
 from feature_flags import LIGHTNING_ENABLED
 from lomadee_client import PRODUCT_ID_PREFIX as LOMADEE_ID_PREFIX, is_short_link
 from shopee_feed import PRODUCT_ID_PREFIX as SHOPEE_FEED_ID_PREFIX
+from mercadolivre_client import PRODUCT_ID_PREFIX as MERCADOLIVRE_ID_PREFIX
 
 # Scrapers de catálogo completo: o item que some do catálogo sai do ar. Valor = prefixo de id do scraper.
 GATRY_ID_PREFIX = "gatry_"
-RETIRING_SCRAPERS = {"Lomadee": LOMADEE_ID_PREFIX, "Shopee Feed": SHOPEE_FEED_ID_PREFIX, "Gatry": GATRY_ID_PREFIX}
+RETIRING_SCRAPERS = {
+    "Lomadee": LOMADEE_ID_PREFIX,
+    "Shopee Feed": SHOPEE_FEED_ID_PREFIX,
+    "Gatry": GATRY_ID_PREFIX,
+    "Mercadolivre": MERCADOLIVRE_ID_PREFIX,
+}
 # Itens desses scrapers chegam sem histórico de preço: não ganham "menor preço" no primeiro registro.
-NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX, GATRY_ID_PREFIX)
+NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX, GATRY_ID_PREFIX, MERCADOLIVRE_ID_PREFIX)
 # Varredura quase vazia = provável falha parcial da fonte: não retira o catálogo inteiro por causa dela.
 MIN_ITEMS_TO_RETIRE = 20
 
