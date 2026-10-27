@@ -97,7 +97,8 @@ export default function RootLayout({
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
-                <Link href="/" className="hover:text-white transition-colors">Ofertas</Link>
+                <Link href="/destaques" className="text-amber-400 hover:text-amber-300 transition-colors font-medium">⚡ Destaques</Link>
+                <Link href="/" className="hover:text-white transition-colors">Todas as Ofertas</Link>
                 <Link href="/radar" className="hover:text-rose-400 transition-colors">Radar de Quedas</Link>
                 <Link href="/busca-personalizada" className="hover:text-cyan-400 transition-colors">Busca Personalizada</Link>
                 <Link href="/lojas" className="hover:text-blue-400 transition-colors">Lojas Parceiras</Link>

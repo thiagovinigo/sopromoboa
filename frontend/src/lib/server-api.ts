@@ -3,6 +3,7 @@ import type { CategoryItem, Deal, DealDetail, StoreItem } from "./api";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 const REVALIDATE_SECONDS = 600;
+const REQUEST_TIMEOUT_MS = 8000;
 const SITEMAP_PAGE_SIZE = 100; // limite máximo aceito por /api/deals
 const SITEMAP_CONCURRENCY = 6;
 const MAX_SITEMAP_PRODUCTS = 45000; // um sitemap aceita até 50.000 URLs
@@ -14,7 +15,10 @@ interface DealsPage {
 
 async function fetchFromApi(path: string): Promise<Response | null> {
   try {
-    return await fetch(`${API_BASE}${path}`, { next: { revalidate: REVALIDATE_SECONDS } });
+    return await fetch(`${API_BASE}${path}`, {
+      next: { revalidate: REVALIDATE_SECONDS },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), // uma chamada travada não pode segurar a página inteira
+    });
   } catch (err) {
     console.error(`[server-api] Falha de rede em ${path}:`, err);
     return null;
@@ -60,6 +64,11 @@ export async function getDealsPage(params: {
   if (!res || !res.ok) return null;
   const total = parseInt(res.headers.get("X-Total-Count") || "0", 10);
   return { items: (await res.json()) as Deal[], total };
+}
+
+/** Ofertas mais clicadas pelos visitantes na janela de dias (cliques reais registrados no redirecionamento). */
+export async function getPopularDeals(days: number, limit: number): Promise<Deal[]> {
+  return (await getJson<Deal[]>(`/api/deals/popular?days=${days}&limit=${limit}`)) ?? [];
 }
 
 export function getCategories(): Promise<CategoryItem[] | null> {

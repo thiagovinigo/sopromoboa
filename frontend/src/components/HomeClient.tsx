@@ -16,7 +16,10 @@ import {
   Zap,
 } from "lucide-react";
 import DealCard from "@/components/DealCard";
+import DealSection from "@/components/DealSection";
 import AdBanner from "@/components/AdBanner";
+import { affiliateNote } from "@/lib/affiliate-note";
+import type { ShowcaseSection } from "@/lib/showcase";
 import {
   fetchDeals,
   fetchCategories,
@@ -26,12 +29,6 @@ import {
   StoreItem,
 } from "@/lib/api";
 import { fetchFavoriteIds } from "@/lib/favorites";
-
-export interface ShowcaseSection {
-  store: string;
-  total: number;
-  deals: Deal[];
-}
 
 interface HomeClientProps {
   initialDeals: Deal[];
@@ -184,32 +181,15 @@ export default function HomeClient({
       {/* Vitrines das lojas grandes: links de afiliado próprios, preço informado pela loja ou pela comunidade */}
       {showShowcase &&
         showcase.map((section) => (
-          <section key={section.store} className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <Store className="w-5 h-5 text-rose-500" />
-                Ofertas {section.store}
-              </h2>
-              {/* <a> e não <Link>: o filtro por loja é lido da URL ao carregar a página */}
-              <a
-                href={`/?source=${encodeURIComponent(section.store)}`}
-                className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors"
-              >
-                Ver todas ({section.total})
-              </a>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-              {section.deals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} />
-              ))}
-            </div>
-            <p className="text-[11px] text-gray-500">
-              {section.store === "Amazon"
-                ? "Como Associado da Amazon, o Que Promo ganha com compras qualificadas. "
-                : "O Que Promo pode receber comissão pelas compras feitas pelos links. "}
-              Preços informados pela loja ou pela comunidade; confirme o valor final no site da loja.
-            </p>
-          </section>
+          <DealSection
+            key={section.store}
+            title={`Ofertas ${section.store}`}
+            icon={<Store className="w-5 h-5 text-rose-500" />}
+            deals={section.deals}
+            linkHref={`/?source=${encodeURIComponent(section.store)}`}
+            linkLabel={`Ver todas (${section.total})`}
+            note={affiliateNote(section.store)}
+          />
         ))}
 
       {/* Banner de Engajamento: Canal de Ofertas no Telegram (Zero Risco Anti-Ban) */}

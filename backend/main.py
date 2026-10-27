@@ -5,7 +5,7 @@ import hashlib
 import threading
 import time
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Depends, Query, Header, HTTPException, Response
 from fastapi.responses import RedirectResponse
@@ -556,6 +556,41 @@ def trigger_lightning_robot_now():
     t = threading.Thread(target=_bg, daemon=True)
     t.start()
     return {"success": True, "message": "Ciclo autônomo do robô disparado em segundo plano!"}
+
+
+@app.get("/api/deals/popular", response_model=List[DealOut])
+def list_popular_deals(
+    days: int = Query(7, ge=1, le=30, description="Janela de cliques, em dias"),
+    limit: int = Query(12, ge=1, le=48),
+    db: Session = Depends(get_db),
+):
+    """Ofertas mais clicadas pelos visitantes na janela de dias (cliques reais registrados em /r/{id})."""
+    since = datetime.utcnow() - timedelta(days=days)
+    ranked = (
+        db.query(ClickModel.product_id, func.count(ClickModel.id).label("clicks"))
+        .filter(ClickModel.created_at >= since)
+        .group_by(ClickModel.product_id)
+        .order_by(desc("clicks"))
+        .limit(limit * 3)  # folga: alguns produtos podem ter saído do ar
+        .all()
+    )
+    ids = [row.product_id for row in ranked]
+    products = {
+        p.id: p
+        for p in db.query(ProductModel).filter(ProductModel.id.in_(ids), ProductModel.is_available == 1)
+    }
+
+    out = []
+    for product_id in ids:
+        product = products.get(product_id)
+        if not product:
+            continue
+        data = DealOut.model_validate(product)
+        data.is_all_time_low = is_all_time_low(product.price, product.lowest_historic_price)
+        out.append(data)
+        if len(out) == limit:
+            break
+    return out
 
 
 @app.get("/api/deals/{product_id}", response_model=DealDetailOut)

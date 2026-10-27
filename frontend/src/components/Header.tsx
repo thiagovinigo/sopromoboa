@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Flame, Sparkles, Store, Bot } from "lucide-react";
+import { Flame, Sparkles, Store, Bot, Zap } from "lucide-react";
 
 export default function Header() {
   return (
@@ -26,6 +26,13 @@ export default function Header() {
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-1.5">
+            <Link
+              href="/destaques"
+              className="text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              Destaques
+            </Link>
             <Link
               href="/"
               className="text-xs font-semibold text-gray-300 hover:text-white hover:bg-white/[0.05] px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
