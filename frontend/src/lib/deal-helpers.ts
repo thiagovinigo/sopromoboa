@@ -1,7 +1,7 @@
 import { Deal } from "./api";
 
 export interface DealThermometer {
-  status: "opportunity" | "regular" | "warning";
+  status: "opportunity" | "declared" | "regular" | "warning";
   label: string;
   badgeClass: string;
   icon: string;
@@ -34,30 +34,41 @@ export function getDealThermometer(deal: Deal): DealThermometer {
     };
   }
 
-  // Menor preço histórico comprovado ou super desconto acima de 25%
-  if (
-    deal.is_all_time_low ||
-    deal.discount_percent >= 25 ||
-    (deal.price_dropped === 1 && deal.discount_percent >= 15)
-  ) {
+  // Só o nosso histórico sustenta o selo de oportunidade: desconto declarado pela loja, sozinho, não basta.
+  const hasConfirmedDrop = deal.price_dropped === 1 && deal.discount_percent >= 15;
+  if (deal.is_all_time_low || hasConfirmedDrop) {
     return {
       status: "opportunity",
-      label: "Oportunidade Real",
-      tag: "MENOR PREÇO",
+      label: deal.is_all_time_low ? "Menor preço registrado" : "Queda confirmada",
+      tag: deal.is_all_time_low ? "MENOR PREÇO" : "QUEDA",
       badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/35",
       icon: "🟢",
-      explanation: "Auditado pelo Que Promo: este produto atingiu o menor valor registrado recentemente.",
+      explanation: deal.is_all_time_low
+        ? "Este é o menor preço que o radar do Que Promo já registrou para este produto."
+        : "O radar do Que Promo registrou uma queda de preço neste produto entre duas varreduras.",
     };
   }
 
-  // Preço padrão de mercado
+  // Desconto informado pela própria loja, sem histórico nosso para confirmar
+  if (deal.discount_percent >= 10) {
+    return {
+      status: "declared",
+      label: "Desconto da loja",
+      tag: "INFORMADO PELA LOJA",
+      badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+      icon: "🏷️",
+      explanation: `A loja informa ${Math.round(deal.discount_percent)}% de desconto sobre o preço de lista. Ainda não temos histórico para confirmar.`,
+    };
+  }
+
+  // Sem desconto declarado e sem histórico: só acompanhamento
   return {
     status: "regular",
-    label: "Preço Padrão",
-    tag: "REGULAR",
-    badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    icon: "🟡",
-    explanation: "Preço médio de mercado. Bom valor, mas sem uma queda drástica nos últimos dias.",
+    label: "Em acompanhamento",
+    tag: "SEM HISTÓRICO",
+    badgeClass: "bg-gray-500/15 text-gray-300 border-gray-500/30",
+    icon: "⚪",
+    explanation: "Estamos acompanhando este preço. O histórico aparece conforme ele variar nas próximas varreduras.",
   };
 }
 

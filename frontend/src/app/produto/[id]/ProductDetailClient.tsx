@@ -139,7 +139,7 @@ export default function ProductDetailClient({ deal }: ProductDetailClientProps) 
             </p>
             <div className="text-[11px] text-gray-400 flex items-center gap-1 pt-1 border-t border-white/10">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Auditoria Anti-Metade do Dobro: Algoritmo ativo comparando histórico e variações.</span>
+              <span>Comparamos com o histórico que o radar registra; produtos novos ainda não têm histórico.</span>
             </div>
           </div>
 

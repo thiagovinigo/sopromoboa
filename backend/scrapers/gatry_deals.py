@@ -18,7 +18,8 @@ from bs4 import BeautifulSoup, Tag
 from scrapers.price_utils import extract_price
 
 MAX_PAGES = int(os.getenv("GATRY_MAX_PAGES", "60"))
-MAX_AGE_HOURS = int(os.getenv("GATRY_MAX_AGE_HOURS", "96"))
+# O preço é o do momento em que a oferta foi postada; quanto mais velha, maior a chance de já ter mudado.
+MAX_AGE_HOURS = int(os.getenv("GATRY_MAX_AGE_HOURS", "36"))
 PAGE_DELAY_SECONDS = 0.6
 REQUEST_TIMEOUT_SECONDS = 15
 BRAZIL_UTC_OFFSET_HOURS = 3

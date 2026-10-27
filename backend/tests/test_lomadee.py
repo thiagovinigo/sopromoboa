@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 import lomadee_client as lc
@@ -21,6 +23,7 @@ def make_product(**overrides):
         "name": "Cueca das Joias MANCLUB",
         "url": "https://manclub.com.br/cueca/p",
         "available": True,
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
         "images": [{"url": "https://img.example.com/cueca.png"}],
         "options": [{"available": True, "pricing": [{"price": 59, "listPrice": 99}]}],
     }
@@ -82,6 +85,23 @@ def test_build_raw_listing_rejects_brands_without_an_approved_channel():
 
     assert lc.build_raw_listing(make_product(), blocked) is None
     assert lc.build_raw_listing(make_product(), no_channel) is None
+
+
+def iso_days_ago(days):
+    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
+
+
+def test_build_raw_listing_rejects_stale_feed_data():
+    """O feed da Lomadee traz o updatedAt de cada produto: preço de meses atrás não é preço atual."""
+    assert lc.build_raw_listing(make_product(updatedAt=iso_days_ago(2)), BRAND) is not None
+    assert lc.build_raw_listing(make_product(updatedAt=iso_days_ago(13)), BRAND) is not None
+    assert lc.build_raw_listing(make_product(updatedAt=iso_days_ago(15)), BRAND) is None
+    assert lc.build_raw_listing(make_product(updatedAt=iso_days_ago(285)), BRAND) is None
+
+
+@pytest.mark.parametrize("updated_at", [None, "", "não é uma data"])
+def test_build_raw_listing_rejects_products_without_a_usable_update_date(updated_at):
+    assert lc.build_raw_listing(make_product(updatedAt=updated_at), BRAND) is None
 
 
 def test_build_raw_listing_drops_medicines_and_non_personal_care_in_pharmacies():

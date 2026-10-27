@@ -7,6 +7,7 @@ import hashlib
 import os
 import threading
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 from urllib.parse import urlparse
 
@@ -39,6 +40,8 @@ MIN_PRICE = 10.0
 MAX_PRICE = 50_000.0
 MIN_DISCOUNT_PERCENT = 10.0
 MAX_DISCOUNT_PERCENT = 70.0
+# Idade máxima dos dados do feed (updatedAt). Medido em out/2026: mediana de 73 dias e só 16% atualizados na semana.
+MAX_DATA_AGE_DAYS = float(os.getenv("LOMADEE_MAX_DATA_AGE_DAYS", "14"))
 
 _rate_lock = threading.Lock()
 _last_request_at = 0.0
@@ -147,6 +150,20 @@ def _discount_percent(price: float, list_price: float) -> float:
     return (list_price - price) / list_price * 100
 
 
+def _data_age_days(product: Dict[str, Any], now: datetime) -> Optional[float]:
+    """Idade, em dias, da última atualização do produto no feed da loja (campo updatedAt)."""
+    raw = product.get("updatedAt")
+    if not raw:
+        return None
+    try:
+        updated = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    return (now - updated).total_seconds() / 86400
+
+
 def _listing_id(product_id: str) -> str:
     digest = hashlib.md5(str(product_id).encode("utf-8")).hexdigest()[:12]
     return f"{PRODUCT_ID_PREFIX}{digest}"
@@ -160,6 +177,10 @@ def build_raw_listing(product: Dict[str, Any], brand: Optional[Dict[str, Any]]) 
     if not pick_short_url(brand.get("channels") or []):
         return None
     if not product.get("available") or not product.get("id"):
+        return None
+    # Feeds de lojas ficam meses sem atualizar: preço antigo não é preço atual
+    age_days = _data_age_days(product, datetime.now(timezone.utc))
+    if age_days is None or age_days > MAX_DATA_AGE_DAYS:
         return None
 
     url = product.get("url") or ""
