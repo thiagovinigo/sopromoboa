@@ -44,6 +44,15 @@ def test_discontinued_prefixes_and_third_party_links_are_retired(db):
     assert available_ids(db) == ["gatry_ok", "lmd_ok"]
 
 
+def test_awin_links_without_a_merchant_are_retired(db):
+    add(db, "gatry_awin", "https://www.awin1.com/cread.php", "https://www.awin1.com/cread.php?utm_source=x", "Centauro")
+    add(db, "gatry_puma", "https://br.puma.com/pd/camisa/1.html", "https://br.puma.com/pd/camisa/1.html", "Puma")
+    db.commit()
+
+    assert worker.retire_discontinued_items(db) == 1
+    assert available_ids(db) == ["gatry_puma"]
+
+
 def test_unproven_lowest_price_is_cleared_only_for_catalog_items_with_a_single_price_point(db):
     from models import PriceHistoryModel
 

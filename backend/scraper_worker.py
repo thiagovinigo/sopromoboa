@@ -81,7 +81,7 @@ def discover_scrapers() -> List[Dict[str, Any]]:
 
 # Fontes descontinuadas e links que pagam comissão a terceiros saem do catálogo a cada ciclo.
 DISCONTINUED_ID_PREFIXES = ("ml_",)
-THIRD_PARTY_LINK_MARKERS = ("meli.la", "link.amazon", "amzn.to", "amzn.com")
+THIRD_PARTY_LINK_MARKERS = ("meli.la", "link.amazon", "amzn.to", "amzn.com", "awin1.com/cread.php")
 
 
 def retire_discontinued_items(db) -> int:

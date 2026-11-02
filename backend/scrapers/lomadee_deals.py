@@ -14,6 +14,7 @@ from lomadee_client import (
     iter_products,
     select_listings,
 )
+from store_verify import make_http_fetch, make_image_status, verify_listings
 
 MAX_PAGES = int(os.getenv("LOMADEE_MAX_PAGES", "600"))
 PER_BRAND_CAP = int(os.getenv("LOMADEE_PER_BRAND_CAP", "2000"))
@@ -35,4 +36,5 @@ def scrape_lomadee() -> List[Dict[str, Any]]:
 
     selected = select_listings(listings, per_brand_cap=PER_BRAND_CAP, total_cap=TOTAL_CAP)
     print(f"[Scraper Lomadee] {len(selected)} ofertas selecionadas de {len(listings)} aproveitáveis.")
-    return selected
+    # O feed é defasado: só publica o que a loja confirma agora, com o preço dela.
+    return verify_listings(selected, make_http_fetch(), image_status=make_image_status())
