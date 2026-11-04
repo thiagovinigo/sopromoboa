@@ -246,7 +246,10 @@ export default function HomeClient({
             >
               Todas
             </button>
-            {stores.map((s) => (
+            {stores
+              // Loja sem oferta só atrapalha: o clique leva a uma lista vazia. A selecionada continua à vista.
+              .filter((s) => s.total_deals > 0 || activeStore.toLowerCase() === s.name.toLowerCase())
+              .map((s) => (
               <button
                 key={s.slug}
                 onClick={() => {

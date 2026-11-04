@@ -8,7 +8,7 @@ export interface ShowcaseSection {
 }
 
 // Lojas grandes ganham uma vitrine própria, desde que tenham ofertas suficientes para preencher uma linha.
-const SHOWCASE_STORES = ["Amazon", "Mercado Livre", "Magazine Luiza", "KaBuM!"];
+const SHOWCASE_STORES = ["Amazon", "Mercado Livre", "Shopee", "Magazine Luiza", "KaBuM!"];
 export const SHOWCASE_MIN_DEALS = 4;
 const SHOWCASE_FETCH = 24;
 
