@@ -7,7 +7,7 @@ import os
 from typing import Any, Dict, List
 
 from lomadee_client import select_listings
-from shopee_feed import collect_listings, feed_sources, parse_feed_text, read_feed_text
+from shopee_feed import feed_sources, read_feed_listings
 
 PER_CATEGORY_CAP = int(os.getenv("SHOPEE_FEED_PER_CATEGORY_CAP", "1500"))
 TOTAL_CAP = int(os.getenv("SHOPEE_FEED_TOTAL_CAP", "5000"))
@@ -19,12 +19,14 @@ def scrape_shopee_feed() -> List[Dict[str, Any]]:
         print("[Scraper Shopee Feed] SHOPEE_FEED_URLS ausente; nada a coletar.")
         return []
 
-    listings: List[Dict[str, Any]] = []
+    unique: Dict[str, Dict[str, Any]] = {}
     for source in sources:
         try:
-            listings.extend(collect_listings(parse_feed_text(read_feed_text(source))))
+            for listing in read_feed_listings(source):  # em fluxo: só os itens bons ficam na memória
+                unique.setdefault(listing["id"], listing)
         except Exception as err:
-            print(f"[Scraper Shopee Feed] Erro ao ler um feed: {err}")
+            print(f"[Scraper Shopee Feed] Erro ao ler um feed: {type(err).__name__}")
+    listings = list(unique.values())
 
     selected = select_listings(listings, per_brand_cap=PER_CATEGORY_CAP, total_cap=TOTAL_CAP, group_key="category")
     print(f"[Scraper Shopee Feed] {len(selected)} ofertas selecionadas de {len(listings)} aproveitáveis.")

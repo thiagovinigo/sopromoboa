@@ -4,11 +4,13 @@ O feed "Shopee Brasil" traz o link direto do produto e o link curto de afiliado 
 entram com o link oficial. O endereço do feed (parâmetro id) funciona como credencial de download e vem da
 variável SHOPEE_FEED_URLS (backend/.env, fora do git).
 """
+import codecs
 import csv
 import io
 import os
 import re
-from typing import Any, Dict, Iterable, Iterator, List, Optional
+import time
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional
 
 import requests
 from dotenv import load_dotenv
@@ -21,7 +23,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 PRODUCT_ID_PREFIX = "shf_"
 SOURCE_NAME = "Shopee"
-DOWNLOAD_TIMEOUT_SECONDS = (15, 180)  # (conexão, leitura): o arquivo tem ~20 MB
+DOWNLOAD_TIMEOUT_SECONDS = (15, 180)  # (conexão, leitura): o arquivo tem de ~20 a ~200 MB
+READ_ATTEMPTS = 3           # o feed grande às vezes cai no meio (ChunkedEncodingError)
+RETRY_WAIT_SECONDS = 20.0   # espera crescente: 20 s, depois 40 s
 
 MIN_PRICE = 10.0
 MAX_PRICE = 20_000.0
@@ -52,6 +56,72 @@ def read_feed_text(source: str) -> str:
 
 def parse_feed_text(text: str) -> Iterator[Dict[str, str]]:
     yield from csv.DictReader(io.StringIO(text.lstrip("﻿"), newline=""))
+
+
+def _text_lines(chunks: Iterable[bytes]) -> Iterator[str]:
+    """Bytes em pedaços -> linhas de texto (mantendo o \\n), sem nunca juntar o arquivo todo.
+
+    O decodificador incremental cuida de caractere acentuado cortado entre dois pedaços; as quebras de linha dentro
+    de campos entre aspas passam intactas, porque o csv junta as linhas.
+    """
+    decoder = codecs.getincrementaldecoder("utf-8-sig")(errors="replace")
+    pending = ""
+    for chunk in chunks:
+        pending += decoder.decode(chunk)
+        *complete, pending = pending.split("\n")
+        for line in complete:
+            yield line + "\n"
+    pending += decoder.decode(b"", final=True)
+    if pending:
+        yield pending
+
+
+def iter_csv_rows(chunks: Iterable[bytes]) -> Iterator[Dict[str, str]]:
+    yield from csv.DictReader(_text_lines(chunks))
+
+
+def iter_feed_rows(source: str) -> Iterator[Dict[str, str]]:
+    """Linhas do CSV de uma URL https ou de um arquivo local, lidas em fluxo (o feed oficial tem ~200 MB)."""
+    if source.startswith("https://"):
+        response = requests.get(
+            source, stream=True, timeout=DOWNLOAD_TIMEOUT_SECONDS, headers={"User-Agent": "Mozilla/5.0"}
+        )
+        try:
+            response.raise_for_status()
+            yield from iter_csv_rows(response.iter_content(chunk_size=1 << 20))
+        finally:
+            response.close()
+        return
+    with open(source, "rb") as handle:
+        yield from iter_csv_rows(iter(lambda: handle.read(1 << 20), b""))
+
+
+def read_feed_listings(source: str, attempts: int = READ_ATTEMPTS, wait_seconds: float = RETRY_WAIT_SECONDS,
+                       sleep: Callable[[float], None] = time.sleep) -> List[Dict[str, Any]]:
+    """Itens aproveitáveis de um feed, em fluxo: só os itens bons ficam na memória, não o arquivo.
+
+    Se a conexão cair no meio, tenta de novo com espera crescente (só para falha de rede). Se todas as tentativas
+    falharem, fica com o que a melhor delas leu: dado parcial é dado real.
+    """
+    best: Dict[str, Dict[str, Any]] = {}
+    for attempt in range(1, attempts + 1):
+        found: Dict[str, Dict[str, Any]] = {}
+        try:
+            for row in iter_feed_rows(source):
+                listing = build_raw_listing(row)
+                if listing:
+                    found[listing["id"]] = listing
+            return list(found.values())
+        except Exception as err:
+            if len(found) > len(best):
+                best = found
+            print(f"[Shopee Feed] Falha ao ler um feed ({type(err).__name__}), tentativa {attempt} de {attempts}.")
+            if not isinstance(err, requests.RequestException):
+                break  # arquivo ausente ou dado corrompido não melhora esperando
+            if attempt < attempts:
+                sleep(wait_seconds * attempt)
+    print(f"[Shopee Feed] Feed incompleto; ficam os {len(best)} itens lidos.")
+    return list(best.values())
 
 
 def _to_float(value: Any) -> Optional[float]:
