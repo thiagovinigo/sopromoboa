@@ -46,3 +46,18 @@ def test_create_managed_link():
     res = create_managed_link("https://www.amazon.com.br/dp/B0CHX1W1XY")
     assert res["store"] == "amazon"
     assert "tag=" in res["affiliate_url"]
+
+
+def test_build_awin_affiliate_url():
+    netshoes_url = "https://www.netshoes.com.br/tenis-nike-metcon-9-preto-JD8-1234"
+    tagged = build_affiliate_url(netshoes_url, utm_source="sopromoboa")
+    assert "awin1.com/cread.php" in tagged
+    assert "awinmid=11739" in tagged
+    assert "awinaffid=3144638" in tagged
+    assert "clickref=sopromoboa" in tagged
+
+    centauro_url = "https://www.centauro.com.br/bermuda-termica-nike-999.html"
+    tagged_c = build_affiliate_url(centauro_url, utm_source="sopromoboa")
+    assert "awinmid=11674" in tagged_c
+    assert "awinaffid=3144638" in tagged_c
+
