@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   title: DEFAULT_TITLE,
   description: DEFAULT_DESCRIPTION,
   applicationName: SITE_NAME,
-  alternates: { canonical: "./" },
+  alternates: { canonical: "/" },
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
@@ -103,6 +103,23 @@ export default function RootLayout({
                 <Link href="/busca-personalizada" className="hover:text-cyan-400 transition-colors">Busca Personalizada</Link>
                 <Link href="/lojas" className="hover:text-blue-400 transition-colors">Lojas Parceiras</Link>
               </div>
+            </div>
+
+            {/* Aviso Legal & Isenção de Responsabilidade CDC & Marco Civil */}
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 text-[11px] text-gray-400 space-y-2 leading-relaxed">
+              <p className="font-semibold text-gray-300 flex items-center gap-1.5 text-xs">
+                <Shield className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                <span>Aviso Legal, Isenção de Responsabilidade & Transparência de Preços</span>
+              </p>
+              <p>
+                O <strong>Que Promo (quepromo.com.br)</strong> é um serviço agregador informativo e comparador independente de promoções. <strong>Não somos loja virtual:</strong> não comercializamos produtos, não possuímos estoque, não realizamos entregas e não processamos transações financeiras.
+              </p>
+              <p>
+                • <strong>Preços e Estoques:</strong> As ofertas e cupons são monitorados continuamente, mas podem ser alterados ou cancelados a qualquer instante pelas lojas parceiras. Em caso de divergência entre os valores anunciados e os valores no site do lojista, <strong>prevalece invariavelmente o preço e a condição exibidos no carrinho da loja parceira oficial</strong>.
+              </p>
+              <p>
+                • <strong>Qualidade e Garantia:</strong> Faturamento, emissão de Nota Fiscal, envio, entrega, integridade, garantia legal e atendimento pós-venda (trocas e devoluções nos termos do CDC) são de responsabilidade integral e exclusiva da loja vendedora e do fabricante. Como participantes de programas de afiliados (Amazon, Mercado Livre, Shopee, Awin, etc.), podemos receber comissão por compras qualificadas sem qualquer custo adicional para o usuário.
+              </p>
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-gray-400">
