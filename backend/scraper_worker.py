@@ -16,7 +16,7 @@ import datetime
 import concurrent.futures
 from typing import List, Dict, Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:
@@ -29,7 +29,7 @@ from database import SessionLocal, engine, Base
 from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, AffiliateProgramModel
 from normalize import normalize_listing
 from pricing import apply_price_change, is_price_drop_active, calculate_discount_percent
-from affiliate import build_affiliate_url
+from affiliate import AWIN_PUBLISHER_ID, build_affiliate_url
 from feature_flags import LIGHTNING_ENABLED
 from lomadee_client import PRODUCT_ID_PREFIX as LOMADEE_ID_PREFIX, is_short_link
 from shopee_feed import PRODUCT_ID_PREFIX as SHOPEE_FEED_ID_PREFIX
@@ -81,7 +81,9 @@ def discover_scrapers() -> List[Dict[str, Any]]:
 
 # Fontes descontinuadas e links que pagam comissão a terceiros saem do catálogo a cada ciclo.
 DISCONTINUED_ID_PREFIXES = ("ml_",)
-THIRD_PARTY_LINK_MARKERS = ("meli.la", "link.amazon", "amzn.to", "amzn.com", "awin1.com/cread.php")
+THIRD_PARTY_LINK_MARKERS = ("meli.la", "link.amazon", "amzn.to", "amzn.com")
+# Link Awin só é de terceiros se não levar o nosso publisher (awinaffid): os que geramos ficam no catálogo.
+AWIN_LINK_MARKER = "awin1.com/cread.php"
 
 
 def retire_discontinued_items(db) -> int:
@@ -89,6 +91,10 @@ def retire_discontinued_items(db) -> int:
     for marker in THIRD_PARTY_LINK_MARKERS:
         conditions.append(ProductModel.url.contains(marker, autoescape=True))
         conditions.append(ProductModel.affiliate_url.contains(marker, autoescape=True))
+    own_publisher = f"awinaffid={AWIN_PUBLISHER_ID}"
+    for column in (ProductModel.url, ProductModel.affiliate_url):
+        conditions.append(and_(column.contains(AWIN_LINK_MARKER, autoescape=True),
+                               ~column.contains(own_publisher, autoescape=True)))
 
     retired = db.query(ProductModel).filter(ProductModel.is_available == 1, or_(*conditions)).update(
         {"is_available": 0}, synchronize_session=False

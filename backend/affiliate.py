@@ -5,6 +5,7 @@ Permite:
 2. Gerenciar tags e IDs de parceiros (Amazon, Magalu, Mercado Livre, Lomadee, Shopee, Awin, etc.).
 3. Gerador de links personalizados para campanhas e postagens em redes sociais.
 """
+import os
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, quote
 from typing import Optional, Dict, Any
 
@@ -17,21 +18,65 @@ DEFAULT_TAGS = {
     "lomadee": {"param": "sourceId", "default": "2324685"},
 }
 
-AWIN_PUBLISHER_ID = "3144638"
+AWIN_PUBLISHER_ID = os.environ.get("AWIN_PUBLISHER_ID", "3144638")
+
+# Sites que usam a rede: "quepromo" (este repositório) e "mercagym" (~/buscafitness).
+SITE_QUEPROMO = "quepromo"
+SITE_MERCAGYM = "mercagym"
+
+# Programas da Awin (conta de publisher 3144638). IDs lidos do painel da Awin em 05/11/2026. Campos:
+#   mid           ID do anunciante (awinmid). AWIN_MID_<SLUG> no .env tem prioridade, sem mexer no código.
+#   mid_verified  True se o ID foi conferido no painel.
+#   status        "approved": o link Awin é aplicado. "pending": candidatura enviada, ainda sem comissão, então o
+#                 link original é mantido. "not_requested": ainda não pedimos. Quando a Awin aprovar, basta listar o
+#                 slug em AWIN_APPROVED no .env (separado por vírgula), sem deploy de código.
+#   sites         em quais sites a loja entra ("quepromo", "mercagym").
+#   filter_health True se a loja vende medicamento: o feed precisa descartar esses itens (Anvisa RDC 96/2008).
+# Os domínios de algumas lojas são prováveis, não confirmados: confira com scripts/awin_verify.py antes de aprovar.
+_BOTH = (SITE_QUEPROMO, SITE_MERCAGYM)
+_GYM = (SITE_MERCAGYM,)
+
+
+def _store(mid, domain, name, status, sites, verified=True, filter_health=False):
+    return {"mid": mid, "mid_verified": verified, "domain": domain, "name": name,
+            "status": status, "sites": sites, "filter_health": filter_health}
+
 
 AWIN_STORES = {
-    "netshoes": {"mid": "11739", "domain": "netshoes.com.br", "name": "Netshoes"},
-    "centauro": {"mid": "11674", "domain": "centauro.com.br", "name": "Centauro"},
-    "nike": {"mid": "17652", "domain": "nike.com.br", "name": "Nike Brasil"},
-    "adidas": {"mid": "19468", "domain": "adidas.com.br", "name": "Adidas Brasil"},
-    "decathlon": {"mid": "20257", "domain": "decathlon.com.br", "name": "Decathlon"},
-    "drogasil": {"mid": "21841", "domain": "drogasil.com.br", "name": "Drogasil"},
-    "drogaraia": {"mid": "21842", "domain": "drogaraia.com.br", "name": "Droga Raia"},
-    "fastshop": {"mid": "11822", "domain": "fastshop.com.br", "name": "Fast Shop"},
-    "electrolux": {"mid": "16578", "domain": "electrolux.com.br", "name": "Electrolux"},
-    "jbl": {"mid": "20739", "domain": "jbl.com.br", "name": "JBL Harman"},
-    "samsung": {"mid": "18580", "domain": "samsung.com", "name": "Samsung"},
+    "lauriesporte": _store("118977", "lauriesporte.com.br", "Lauri Esporte", "approved", _GYM),
+    "centauro": _store("17806", "centauro.com.br", "Centauro", "pending", _BOTH),
+    "nike": _store("17652", "nike.com.br", "Nike Brasil", "pending", _BOTH),
+    "adidas": _store("79926", "adidas.com.br", "adidas Brasil", "pending", _BOTH),
+    "decathlon": _store("19296", "decathlon.com.br", "Decathlon", "pending", _BOTH),
+    "asics": _store("23659", "asics.com.br", "ASICS Brasil", "pending", _BOTH),
+    "authenticfeet": _store("28775", "authenticfeet.com.br", "Authentic Feet", "pending", _BOTH),
+    "technos": _store("28161", "technos.com.br", "Technos", "pending", _BOTH),
+    "puma": _store("32675", "puma.com", "PUMA Brasil", "pending", _GYM),
+    "underarmour": _store("18864", "underarmour.com.br", "Under Armour Brasil", "pending", _GYM),
+    "mizuno": _store("51271", "mizuno.com.br", "Mizuno Brasil", "pending", _GYM),
+    "olympikus": _store("17698", "olympikus.com.br", "Olympikus", "pending", _GYM),
+    "dafiti": _store("17697", "dafiti.com.br", "Dafiti", "pending", _GYM),
+    "pacco": _store("130751", "pacco.com.br", "PACCO", "pending", _GYM),
+    "swissmove": _store("125142", "swissmove.com.br", "Swiss Move", "pending", _GYM),
+    "electrolux": _store("16578", "electrolux.com.br", "Electrolux", "not_requested", (SITE_QUEPROMO,), verified=False),
 }
+
+
+def awin_mid(slug: str) -> str:
+    """ID do anunciante: AWIN_MID_<SLUG> do ambiente tem prioridade sobre o valor da tabela."""
+    return os.environ.get(f"AWIN_MID_{slug.upper()}") or AWIN_STORES[slug]["mid"]
+
+
+def awin_is_approved(slug: str) -> bool:
+    """True se a Awin aprovou a loja (campo status ou slug listado em AWIN_APPROVED)."""
+    listed = {s.strip().lower() for s in os.environ.get("AWIN_APPROVED", "").split(",") if s.strip()}
+    cfg = AWIN_STORES.get(slug)
+    return bool(cfg) and (cfg["status"] == "approved" or slug in listed)
+
+
+def awin_stores_for_site(site: str) -> Dict[str, Dict[str, Any]]:
+    """Lojas da Awin que atendem um site ("quepromo" ou "mercagym"), em qualquer status."""
+    return {slug: cfg for slug, cfg in AWIN_STORES.items() if site in cfg["sites"]}
 
 
 def build_awin_url(
@@ -42,17 +87,21 @@ def build_awin_url(
 ) -> str:
     """Gera URL comissionada via Awin para qualquer anunciante parceiro."""
     clean_target = original_url.strip()
+    if urlparse(clean_target).scheme not in ("http", "https"):
+        raise ValueError("URL de destino da Awin precisa ser http(s)")
+    mid, pub, ref = (quote(str(v), safe="") for v in (merchant_id, publisher_id, clickref))
     encoded = quote(clean_target, safe="")
-    return f"https://www.awin1.com/cread.php?awinmid={merchant_id}&awinaffid={publisher_id}&clickref={clickref}&ued={encoded}"
+    return f"https://www.awin1.com/cread.php?awinmid={mid}&awinaffid={pub}&clickref={ref}&ued={encoded}"
 
 
 def detect_store_from_url(url: str) -> str:
     """Identifica a loja/marketplace a partir do domínio da URL."""
     domain = urlparse(url).netloc.lower()
 
-    # Checa primeiro lojas Awin
+    # Checa primeiro lojas Awin, por fronteira de domínio (evita "basics.com.br" casar com "asics.com.br")
+    host = (urlparse(url).hostname or "").lower()
     for slug, cfg in AWIN_STORES.items():
-        if cfg["domain"] in domain:
+        if host == cfg["domain"] or host.endswith("." + cfg["domain"]):
             return slug
 
     if "amazon.com" in domain:
@@ -92,9 +141,11 @@ def build_affiliate_url(
         store_slug = detect_store_from_url(original_url)
 
     # 1. Se for loja da rede Awin
-    if store_slug in AWIN_STORES:
-        mid = custom_tag or AWIN_STORES[store_slug]["mid"]
-        return build_awin_url(original_url, merchant_id=mid, publisher_id=AWIN_PUBLISHER_ID, clickref=utm_source)
+    # custom_tag é ignorado aqui: o tracking_id de outras redes (Lomadee, Shopee...) não é um awinmid.
+    if store_slug in AWIN_STORES and awin_is_approved(store_slug):
+        if urlparse(original_url.strip()).scheme in ("http", "https"):
+            return build_awin_url(original_url, merchant_id=awin_mid(store_slug),
+                                  publisher_id=AWIN_PUBLISHER_ID, clickref=utm_source)
 
     try:
         # Se for um shortlink da Shopee, desempacota para link canônico direto e remove tag de terceiros
@@ -188,5 +239,5 @@ def create_managed_link(
         "original_url": raw_url,
         "affiliate_url": affiliate_url,
         "campaign": campaign_name,
-        "has_partner_tag": bool(store in DEFAULT_TAGS or store in AWIN_STORES or custom_tag)
+        "has_partner_tag": bool(store in DEFAULT_TAGS or awin_is_approved(store) or custom_tag)
     }

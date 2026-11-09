@@ -220,3 +220,112 @@ def fetch_listing(client: MercadoLivreClient, product_id: str, category_name: st
     if not product or not offer:
         return None
     return build_raw_listing(product, offer, category_name)
+
+
+CURATED_CATALOG_QUERIES: List[Tuple[str, str]] = [
+    ("Apple iPhone 16", "Celulares e Telefones"),
+    ("Apple iPhone 15", "Celulares e Telefones"),
+    ("Apple iPhone 15 Pro", "Celulares e Telefones"),
+    ("Apple iPhone 14", "Celulares e Telefones"),
+    ("Apple iPhone 13", "Celulares e Telefones"),
+    ("Samsung Galaxy S24", "Celulares e Telefones"),
+    ("Samsung Galaxy S23", "Celulares e Telefones"),
+    ("Samsung Galaxy A55", "Celulares e Telefones"),
+    ("Xiaomi Redmi Note 13", "Celulares e Telefones"),
+    ("Xiaomi Poco X6", "Celulares e Telefones"),
+    ("Motorola Edge 50", "Celulares e Telefones"),
+    ("PlayStation 5", "Games"),
+    ("Nintendo Switch", "Games"),
+    ("Xbox Series", "Games"),
+    ("Apple MacBook Air", "Informática"),
+    ("Apple iPad", "Informática"),
+    ("Apple AirPods", "Eletrônicos, Áudio e Vídeo"),
+    ("Placa de Vídeo RTX 4060", "Informática"),
+]
+
+
+from normalize import query_wants_accessory
+
+
+def infer_ml_domain_id(query: str) -> Optional[str]:
+    """Infere o domain_id do catálogo do Mercado Livre quando a busca é claramente por um aparelho principal."""
+    if not query or query_wants_accessory(query):
+        return None
+    q_norm = query.lower().strip()
+    if re.search(r"\b(iphone|galaxy\s+[sza]|redmi\s+note|poco\s+[xfm]|moto\s+g|motorola\s+edge|smartphone|celular)\b", q_norm):
+        return "MLB-CELLPHONES"
+    if re.search(r"\b(playstation\s*[45]|ps[45]|xbox\s+series|nintendo\s+switch)\b", q_norm):
+        return "MLB-GAME_CONSOLES"
+    if re.search(r"\b(macbook|notebook|laptop)\b", q_norm):
+        return "MLB-NOTEBOOKS"
+    if re.search(r"\b(ipad|tablet)\b", q_norm):
+        return "MLB-TABLETS"
+    if re.search(r"\b(smart\s+tv|tv\s+\d{2})\b", q_norm):
+        return "MLB-TELEVISIONS"
+    return None
+
+
+def iter_curated_catalog(client: MercadoLivreClient, limit_per_query: int = 15) -> Iterator[Tuple[str, Dict[str, Any]]]:
+    """Busca no catálogo oficial do Mercado Livre os produtos mais procurados (que podem ficar fora do top-20 de destaques)."""
+    for query, category_name in CURATED_CATALOG_QUERIES:
+        params: Dict[str, Any] = {"status": "active", "site_id": SITE_ID, "q": query, "limit": limit_per_query}
+        domain_id = infer_ml_domain_id(query)
+        if domain_id:
+            params["domain_id"] = domain_id
+        try:
+            payload = client.get("/products/search", params=params)
+        except requests.RequestException as err:
+            print(f"[Mercado Livre] Busca curada '{query}' ignorada: {err}")
+            continue
+        results = (payload or {}).get("results") or []
+        if results:
+            content = [{"id": r["id"], "type": "PRODUCT"} for r in results if r.get("id")]
+            yield category_name, {"content": content}
+
+
+def search_catalog_listings(query: str, max_results: int = 10, search_limit: int = 20) -> List[Dict[str, Any]]:
+    """Busca sob demanda no catálogo do Mercado Livre e retorna anúncios ativos com melhor oferta."""
+    import concurrent.futures
+
+    credentials = get_credentials()
+    if not credentials or not query or len(query.strip()) < 2:
+        return []
+
+    q_clean = query.strip()
+    params: Dict[str, Any] = {"status": "active", "site_id": SITE_ID, "q": q_clean, "limit": search_limit}
+    domain_id = infer_ml_domain_id(q_clean)
+    if domain_id:
+        params["domain_id"] = domain_id
+
+    try:
+        client = MercadoLivreClient(*credentials)
+        payload = client.get("/products/search", params=params)
+    except Exception as err:
+        print(f"[Mercado Livre On-Demand] Erro na busca '{query}': {err}")
+        return []
+
+    products = [p for p in ((payload or {}).get("results") or []) if p.get("id") and p.get("status") == "active"]
+    if not products:
+        return []
+
+    def _fetch_product_offer(product: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        pid = product["id"]
+        domain_hint = str(product.get("domain_id") or "")
+        try:
+            offers = (client.get(f"/products/{pid}/items") or {}).get("results") or []
+            offer = pick_best_offer(offers)
+            if not offer:
+                return None
+            return build_raw_listing(product, offer, domain_hint)
+        except Exception:
+            return None
+
+    listings: List[Dict[str, Any]] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        for item in pool.map(_fetch_product_offer, products):
+            if item:
+                listings.append(item)
+                if len(listings) >= max_results:
+                    break
+
+    return listings

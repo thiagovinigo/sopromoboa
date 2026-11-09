@@ -16,11 +16,22 @@ import re
 import urllib.parse
 from sqlalchemy import func, desc, asc, or_
 
-from database import get_db, engine, Base
+from database import get_db, engine, Base, SessionLocal
 from models import ProductModel, PriceHistoryModel, StoreModel, AlertModel, ClickModel, AffiliateProgramModel, FavoriteModel, DiscoveredStoreModel
 from pricing import is_price_drop_active, is_all_time_low, calculate_discount_percent, DROP_WINDOW_DAYS
 from affiliate import build_affiliate_url, create_managed_link, detect_store_from_url
-from normalize import clean_title, detect_category, detect_brand
+from normalize import (
+    clean_title,
+    detect_category,
+    detect_brand,
+    normalize_listing,
+    is_accessory_title,
+    query_wants_accessory,
+    min_plausible_device_price,
+    extract_search_tokens,
+    score_search_match,
+)
+from mercadolivre_client import search_catalog_listings
 from scraper_worker import run_worker_once
 from store_hunter_agent import StoreHunterAgent
 from lightning_robot import run_lightning_robot_cycle, robot_status
@@ -192,6 +203,188 @@ class WorkerSearchResult(BaseModel):
 
 
 # ==========================================
+# INTELIGÊNCIA DE BUSCA & CATÁLOGO SOB DEMANDA
+# ==========================================
+COMMON_SEARCH_ALIASES: Dict[str, tuple[str, Optional[str]]] = {
+    "iphone5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
+    "iphone 5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
+    "iphone16": ("iphone 16", None),
+    "iphone15": ("iphone 15", None),
+    "iphone14": ("iphone 14", None),
+    "iphone13": ("iphone 13", None),
+    "iphone12": ("iphone 12", None),
+    "ps5": ("playstation 5", None),
+    "playstation5": ("playstation 5", None),
+    "ps4": ("playstation 4", None),
+    "airfryer": ("air fryer", None),
+    "s24": ("galaxy s24", None),
+    "s23": ("galaxy s23", None),
+    "rtx4060": ("rtx 4060", None),
+    "rtx3060": ("rtx 3060", None),
+    "switch": ("nintendo switch", None),
+}
+
+_live_catalog_cache: Dict[str, float] = {}
+_LIVE_CATALOG_TTL_SECONDS = 900.0
+
+
+def resolve_search_query(raw_q: str) -> tuple[str, Optional[str], Optional[str]]:
+    """Normaliza a busca aplicando aliases comuns e separando números colados."""
+    q_clean = (raw_q or "").strip()
+    q_norm = q_clean.lower()
+    if q_norm in COMMON_SEARCH_ALIASES:
+        target, notice = COMMON_SEARCH_ALIASES[q_norm]
+        return target, target, notice
+    target = q_clean.replace('"', ' " ').replace("'", " ' ")
+    target = re.sub(r"([a-zA-Z]{2,})(\d+)", r"\1 \2", target)
+    target = re.sub(r"(\d+)([a-zA-Z]{2,})", r"\1 \2", target)
+    target = re.sub(r"\s+", " ", target).strip()
+    return target, None, None
+
+
+def ingest_live_catalog_for_query(target_query: str, db: Session) -> int:
+    """Consulta o catálogo oficial do Mercado Livre sob demanda quando o banco local tem poucos aparelhos para a busca."""
+    q_key = (target_query or "").lower().strip()
+    if len(q_key) < 2:
+        return 0
+
+    now_mono = time.monotonic()
+    last_run = _live_catalog_cache.get(q_key, 0.0)
+    if (now_mono - last_run) < _LIVE_CATALOG_TTL_SECONDS:
+        return 0
+
+    raw_listings = search_catalog_listings(target_query, max_results=10, search_limit=16)
+    if not raw_listings:
+        _live_catalog_cache[q_key] = now_mono
+        return 0
+
+    added_or_updated = 0
+    now_utc = datetime.utcnow()
+    for raw in raw_listings:
+        norm = normalize_listing(raw)
+        if score_search_match(norm["title"], norm["price"], target_query) is None:
+            continue
+
+        existing = db.query(ProductModel).filter(ProductModel.id == norm["id"]).first()
+        if existing:
+            existing.title = norm["title"]
+            existing.price = norm["price"]
+            existing.list_price = norm["list_price"]
+            existing.discount_percent = norm["discount_percent"]
+            existing.category = norm["category"]
+            existing.brand = norm["brand"]
+            existing.url = norm["url"]
+            existing.affiliate_url = norm["affiliate_url"]
+            existing.image_url = norm["image_url"]
+            existing.free_shipping = norm["free_shipping"]
+            existing.is_available = 1
+            existing.last_updated = now_utc
+            if not existing.lowest_historic_price or norm["price"] < existing.lowest_historic_price:
+                existing.lowest_historic_price = norm["price"]
+        else:
+            new_prod = ProductModel(
+                id=norm["id"],
+                title=norm["title"],
+                price=norm["price"],
+                list_price=norm["list_price"],
+                previous_price=norm["list_price"],
+                lowest_historic_price=norm["price"],
+                price_dropped=1 if (norm["discount_percent"] or 0) >= 5 else 0,
+                discount_percent=norm["discount_percent"] or 0.0,
+                brand=norm["brand"],
+                category=norm["category"],
+                subcategory=norm.get("subcategory"),
+                url=norm["url"],
+                affiliate_url=norm["affiliate_url"],
+                source=norm["source"],
+                image_url=norm["image_url"],
+                free_shipping=norm["free_shipping"],
+                is_available=1,
+                is_affiliate_deal=1,
+                last_updated=now_utc,
+            )
+            db.add(new_prod)
+            db.add(PriceHistoryModel(product_id=norm["id"], price=norm["price"], seen_at=now_utc))
+        added_or_updated += 1
+
+    if added_or_updated > 0:
+        for attempt in range(3):
+            try:
+                db.commit()
+                _live_catalog_cache[q_key] = now_mono
+                break
+            except Exception:
+                db.rollback()
+                if attempt == 2:
+                    return 0
+                time.sleep(0.5)
+
+    return added_or_updated
+
+
+def query_search_candidates(base_query, target_query: str, sort: str, db: Session, allow_live_ingest: bool = True) -> List[ProductModel]:
+    """Filtra candidatos no SQL e aplica score de relevância, exclusão de acessórios e ingestão sob demanda."""
+    tokens = extract_search_tokens(target_query)
+    text_tokens = [t for t in tokens if not t.isdigit() and len(t) >= 2]
+    lead_tokens = text_tokens[:2] if text_tokens else (tokens[:1] if tokens else [])
+
+    def _run_filter() -> List[ProductModel]:
+        q_sql = base_query
+        for lt in lead_tokens:
+            q_sql = q_sql.filter(ProductModel.title.ilike(f"%{lt}%"))
+        if not query_wants_accessory(target_query):
+            min_dev_p = min_plausible_device_price(target_query)
+            if min_dev_p > 0:
+                q_sql = q_sql.filter(ProductModel.price >= min_dev_p)
+
+        candidates = q_sql.all()
+        scored: List[tuple[int, ProductModel]] = []
+        for p in candidates:
+            sc = score_search_match(p.title, p.price, target_query)
+            if sc is not None:
+                scored.append((sc, p))
+
+        if sort == "price_asc":
+            scored.sort(key=lambda pair: (0 if pair[0] >= 80 else 1, pair[1].price))
+        elif sort == "price_desc":
+            scored.sort(key=lambda pair: (0 if pair[0] >= 80 else 1, -pair[1].price))
+        elif sort == "discount_desc":
+            scored.sort(key=lambda pair: (0 if pair[0] >= 80 else 1, -(pair[1].discount_percent or 0.0), pair[1].price))
+        elif sort == "drop_desc":
+            scored.sort(
+                key=lambda pair: (
+                    0 if pair[0] >= 80 else 1,
+                    -(pair[1].price_dropped or 0),
+                    -((pair[1].previous_price or pair[1].price) - pair[1].price),
+                )
+            )
+        else:
+            # Relevância principal + maior desconto / menor preço
+            scored.sort(key=lambda pair: (-pair[0], -(pair[1].discount_percent or 0.0), pair[1].price))
+
+        return [pair[1] for pair in scored]
+
+    matches = _run_filter()
+    if allow_live_ingest and len(matches) < 3:
+        q_key = (target_query or "").lower().strip()
+        now_mono = time.monotonic()
+        if len(q_key) >= 2 and (now_mono - _live_catalog_cache.get(q_key, 0.0)) >= _LIVE_CATALOG_TTL_SECONDS:
+            _live_catalog_cache[q_key] = now_mono
+
+            def _bg_ingest(q_str: str):
+                bg_db = SessionLocal()
+                try:
+                    _live_catalog_cache.pop(q_str.lower().strip(), None)
+                    ingest_live_catalog_for_query(q_str, bg_db)
+                finally:
+                    bg_db.close()
+
+            threading.Thread(target=_bg_ingest, args=(target_query,), daemon=True).start()
+
+    return matches
+
+
+# ==========================================
 # BUSCA PERSONALIZADA & COMPARADOR MULTI-LOJAS
 # ==========================================
 @app.get("/api/comparator/search", response_model=WorkerSearchResult)
@@ -201,102 +394,10 @@ def comparator_search(
 ):
     """Busca personalizada inteligente com normalização de termos, desambiguação de modelos e ranking multi-lojas."""
     raw_q = q.strip()
-    q_norm = raw_q.lower()
+    target_query, did_you_mean, did_you_mean_notice = resolve_search_query(raw_q)
 
-    STOPWORDS = {"de", "da", "do", "dos", "das", "com", "para", "pra", "em", "no", "na", "o", "a", "os", "as", "e", "por", "ate", "até"}
-    UNIT_WORDS = {"polegadas", "polegada", "pol", "pols", "inches", "inch", "gb", "tb", "giga", "gigas", "mb", "hz", "w", "watts", "v", "volts"}
-    ACCESSORY_KEYWORDS = {"suporte", "braço", "braco", "articulado", "capa", "capinha", "pelicula", "película", "cabo", "adaptador", "carregador"}
-
-    # 1. Dicionário de Aliases e Typos Frequentes
-    COMMON_ALIASES = {
-        "iphone5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
-        "iphone 5": ("iphone 15", "O iPhone 5 é um modelo descontinuado pelas lojas oficiais. Nossos workers buscaram as melhores ofertas do iPhone 15:"),
-        "ps5": ("playstation 5", None),
-        "playstation5": ("playstation 5", None),
-        "ps4": ("playstation 4", None),
-        "airfryer": ("air fryer", None),
-        "s24": ("galaxy s24", None),
-        "s23": ("galaxy s23", None),
-        "rtx4060": ("rtx 4060", None),
-        "rtx3060": ("rtx 3060", None),
-        "switch": ("nintendo switch", None),
-    }
-
-    did_you_mean = None
-    did_you_mean_notice = None
-    target_query = raw_q
-
-    if q_norm in COMMON_ALIASES:
-        target_query, did_you_mean_notice = COMMON_ALIASES[q_norm]
-        did_you_mean = target_query
-    else:
-        # Separa aspas de polegadas e números colados (ex: 32" -> 32 ", 32pol -> 32 pol)
-        target_query = target_query.replace('"', ' " ').replace("'", " ' ")
-        target_query = re.sub(r"([a-zA-Z]{2,})(\d+)", r"\1 \2", target_query)
-        target_query = re.sub(r"(\d+)([a-zA-Z]{2,})", r"\1 \2", target_query)
-
-    # Identifica se o usuário quer explicitamente um acessório
-    user_wants_accessory = any(ak in q_norm for ak in ACCESSORY_KEYWORDS)
-
-    raw_tokens = [t.lower().strip() for t in re.split(r"[\s\-_/]+", target_query) if t.strip()]
-
-    # Separa tokens de busca eliminando stopwords e unidades de medida puras
-    clean_tokens = []
-    numeric_tokens = []
-    for t in raw_tokens:
-        if t in STOPWORDS or t in {'"', "'"}:
-            continue
-        if t in UNIT_WORDS or t.startswith("poleg") or t.startswith("pol."):
-            # Unidades de medida (ex: 'polegadas', 'polegads', 'pol') não devem ser termos obrigatórios no título
-            continue
-        if t.isdigit():
-            numeric_tokens.append(t)
-            clean_tokens.append(t)
-        else:
-            clean_tokens.append(t)
-
-    if not clean_tokens and raw_tokens:
-        clean_tokens = [t for t in raw_tokens if t not in STOPWORDS]
-
-    # 2. Busca preliminar ampla no banco
-    candidates_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
-    
-    # Usa o token de texto principal mais longo para filtrar no SQL
-    text_tokens = [t for t in clean_tokens if not t.isdigit() and len(t) > 2]
-    lead_token = text_tokens[0] if text_tokens else (clean_tokens[0] if clean_tokens else "")
-    if lead_token:
-        candidates_query = candidates_query.filter(ProductModel.title.ilike(f"%{lead_token}%"))
-
-    all_candidates = candidates_query.all()
-
-    # 3. Filtragem rigorosa em memória
-    matches = []
-    for p in all_candidates:
-        title_lower = p.title.lower()
-
-        # Se o usuário não pediu suporte/acessório, descarta suportes de monitor/braço articulado
-        if not user_wants_accessory:
-            if title_lower.startswith("suporte ") or "suporte articulado" in title_lower or "suporte de mesa" in title_lower or "suporte para monitor" in title_lower:
-                continue
-
-        is_match = True
-        for t in clean_tokens:
-            if t.isdigit():
-                # Para números de modelo ou dimensão (ex: '32', '24', '15'),
-                # aceita limites de palavras ou sufixo de unidade (" , ' , pol)
-                pattern = rf"\b{re.escape(t)}(\"|\'|pol|p|\b)"
-                if not re.search(pattern, title_lower):
-                    is_match = False
-                    break
-            else:
-                if t not in title_lower:
-                    is_match = False
-                    break
-        if is_match:
-            matches.append(p)
-
-    # Ordena pelo menor preço
-    matches.sort(key=lambda x: x.price)
+    base_query = db.query(ProductModel).filter(ProductModel.is_available == 1)
+    matches = query_search_candidates(base_query, target_query, sort="price_asc", db=db, allow_live_ingest=True)
 
     # 4. Agrupa por loja (source) para identificar o melhor preço de cada marketplace
     store_deals: Dict[str, ProductModel] = {}
@@ -427,8 +528,6 @@ def list_deals(
         ~ProductModel.url.ilike("%/search%")
     )
 
-    if q:
-        query = query.filter(ProductModel.title.ilike(f"%{q}%"))
     if category:
         query = query.filter(ProductModel.category == category)
     if source:
@@ -442,27 +541,38 @@ def list_deals(
     if max_price is not None:
         query = query.filter(ProductModel.price <= max_price)
 
-    # Total de registros correspondentes
-    total_count = query.count()
-    response.headers["X-Total-Count"] = str(total_count)
-
-    # Ordenação
-    if sort == "drop_desc":
-        # Ordena pelas maiores diferenças nominais de queda
-        query = query.order_by(
-            ProductModel.price_dropped.desc(),
-            (ProductModel.previous_price - ProductModel.price).desc()
+    if q and q.strip():
+        target_query, _, _ = resolve_search_query(q)
+        ranked_items = query_search_candidates(
+            query,
+            target_query,
+            sort=sort,
+            db=db,
+            allow_live_ingest=(offset == 0 and not category and not source and not only_drops),
         )
-    elif sort == "discount_desc":
-        query = query.order_by(ProductModel.discount_percent.desc())
-    elif sort == "price_asc":
-        query = query.order_by(ProductModel.price.asc())
-    elif sort == "price_desc":
-        query = query.order_by(ProductModel.price.desc())
+        response.headers["X-Total-Count"] = str(len(ranked_items))
+        items = ranked_items[offset : offset + limit]
     else:
-        query = query.order_by(ProductModel.last_updated.desc())
+        # Total de registros correspondentes
+        total_count = query.count()
+        response.headers["X-Total-Count"] = str(total_count)
 
-    items = query.offset(offset).limit(limit).all()
+        # Ordenação
+        if sort == "drop_desc":
+            query = query.order_by(
+                ProductModel.price_dropped.desc(),
+                (ProductModel.previous_price - ProductModel.price).desc()
+            )
+        elif sort == "discount_desc":
+            query = query.order_by(ProductModel.discount_percent.desc())
+        elif sort == "price_asc":
+            query = query.order_by(ProductModel.price.asc())
+        elif sort == "price_desc":
+            query = query.order_by(ProductModel.price.desc())
+        else:
+            query = query.order_by(ProductModel.last_updated.desc())
+
+        items = query.offset(offset).limit(limit).all()
 
     # Preenche flag dinâmico is_all_time_low
     out = []
@@ -500,26 +610,30 @@ def list_lightning_deals(
         ~ProductModel.url.ilike("%/search%")
     )
 
-    if q:
-        query = query.filter(ProductModel.title.ilike(f"%{q}%"))
     if category and category != "todas":
         query = query.filter(ProductModel.category == category)
     if min_discount:
         query = query.filter(ProductModel.discount_percent >= min_discount)
 
-    total_count = query.count()
-    response.headers["X-Total-Count"] = str(total_count)
-
-    if sort == "discount_desc":
-        query = query.order_by(ProductModel.discount_percent.desc())
-    elif sort == "price_asc":
-        query = query.order_by(ProductModel.price.asc())
-    elif sort == "price_desc":
-        query = query.order_by(ProductModel.price.desc())
+    if q and q.strip():
+        target_query, _, _ = resolve_search_query(q)
+        ranked_items = query_search_candidates(query, target_query, sort=sort, db=db, allow_live_ingest=False)
+        response.headers["X-Total-Count"] = str(len(ranked_items))
+        items = ranked_items[offset : offset + limit]
     else:
-        query = query.order_by(ProductModel.last_updated.desc())
+        total_count = query.count()
+        response.headers["X-Total-Count"] = str(total_count)
 
-    items = query.offset(offset).limit(limit).all()
+        if sort == "discount_desc":
+            query = query.order_by(ProductModel.discount_percent.desc())
+        elif sort == "price_asc":
+            query = query.order_by(ProductModel.price.asc())
+        elif sort == "price_desc":
+            query = query.order_by(ProductModel.price.desc())
+        else:
+            query = query.order_by(ProductModel.last_updated.desc())
+
+        items = query.offset(offset).limit(limit).all()
 
     out = []
     for item in items:
@@ -697,21 +811,6 @@ def worker_search_deals(
     """Aciona a busca inteligente dos workers para caçar o melhor preço de um item entre lojas."""
     query = db.query(ProductModel).filter(ProductModel.is_available == 1)
 
-    # Limpeza e tokenização dos termos
-    raw_terms = [t.strip() for t in q.replace("-", " ").replace("+", " ").split() if len(t.strip()) > 1]
-
-    if raw_terms:
-        from sqlalchemy import and_, or_
-        and_conditions = [ProductModel.title.ilike(f"%{term}%") for term in raw_terms]
-        matched_query = query.filter(and_(*and_conditions))
-
-        # Se houver menos de 2 resultados com AND estrito, relaxa para OR
-        if matched_query.count() < 2:
-            or_conditions = [ProductModel.title.ilike(f"%{term}%") for term in raw_terms]
-            query = query.filter(or_(*or_conditions))
-        else:
-            query = matched_query
-
     if source:
         query = query.filter(ProductModel.source.ilike(f"%{source}%"))
     if max_price is not None:
@@ -719,14 +818,15 @@ def worker_search_deals(
     if min_price is not None:
         query = query.filter(ProductModel.price >= min_price)
 
-    if sort == "discount_desc":
-        query = query.order_by(ProductModel.discount_percent.desc())
-    elif sort == "recent":
-        query = query.order_by(ProductModel.last_updated.desc())
-    else: # price_asc (menor preço primeiro)
-        query = query.order_by(ProductModel.price.asc())
-
-    all_matches = query.limit(limit).all()
+    target_query, _, _ = resolve_search_query(q)
+    ranked = query_search_candidates(
+        query,
+        target_query,
+        sort=sort,
+        db=db,
+        allow_live_ingest=(source is None and max_price is None and min_price is None),
+    )
+    all_matches = ranked[:limit]
 
     if not all_matches:
         return WorkerSearchResult(
@@ -1508,11 +1608,39 @@ def background_worker_loop():
         time.sleep(3600) # 1 hora exata (3600 segundos)
 
 
+def reclassify_and_seed_catalog_on_startup():
+    """Reclassifica acessórios que estavam na categoria smartphones e garante aparelhos principais no catálogo."""
+    try:
+        db = SessionLocal()
+        try:
+            smartphone_rows = db.query(ProductModel).filter(ProductModel.category == "smartphones").all()
+            reclassified = 0
+            for row in smartphone_rows:
+                if is_accessory_title(row.title) or (row.price or 0.0) < 350.0:
+                    row.category = "perifericos"
+                    reclassified += 1
+            if reclassified > 0:
+                db.commit()
+                print(f"[Startup Catalog] {reclassified} acessórios reclassificados de 'smartphones' para 'perifericos'.")
+
+            for seed_q in ("iphone 15", "iphone 16", "iphone 14", "iphone 13", "galaxy s24", "playstation 5"):
+                try:
+                    ingest_live_catalog_for_query(seed_q, db)
+                except Exception as err:
+                    print(f"[Startup Catalog] Falha ao popular '{seed_q}': {err}")
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[Startup Catalog] Erro: {e}")
+
+
 @app.on_event("startup")
 def start_auto_worker_on_startup():
     """Inicia thread de background para o worker na subida da aplicação."""
-    t = threading.Thread(target=background_worker_loop, daemon=True)
-    t.start()
+    threading.Thread(target=reclassify_and_seed_catalog_on_startup, daemon=True).start()
+    if os.getenv("DISABLE_IN_PROCESS_WORKER") != "1":
+        t = threading.Thread(target=background_worker_loop, daemon=True)
+        t.start()
 
 
 @app.post("/api/worker/run")

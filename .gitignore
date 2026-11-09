@@ -41,3 +41,8 @@ Thumbs.db
 .idea/
 .vscode/
 
+
+# arquivos de trabalho locais
+scratch/
+frontend/tsconfig.tsbuildinfo
+backend/curated_ml_catalog.json

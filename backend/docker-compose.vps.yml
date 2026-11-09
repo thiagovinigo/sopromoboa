@@ -26,6 +26,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:////data/sopromoboa.db
       - API_DOMAIN=${API_DOMAIN:-api.quepromo.com.br}
+      - DISABLE_IN_PROCESS_WORKER=1
     networks:
       - web
     labels:
@@ -51,7 +52,8 @@ services:
     environment:
       - DATABASE_URL=sqlite:////data/sopromoboa.db
     entrypoint: >
-      sh -c "while true; do
+      sh -c "sleep 30;
+             while true; do
                echo 'Iniciando ciclo de varredura de ofertas...';
                python /app/scraper_worker.py;
                python /app/lightning_robot.py;

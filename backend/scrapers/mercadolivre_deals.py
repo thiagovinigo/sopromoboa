@@ -5,6 +5,7 @@ afiliado (matt_tool) entra em normalize/affiliate. O preço de lista só existe 
 informa (original_price); sem ele o item entra sem desconto, e nunca com preço de lista inventado.
 """
 import concurrent.futures
+import itertools
 import os
 from typing import Any, Dict, List
 
@@ -13,6 +14,7 @@ from mercadolivre_client import (
     collect_product_refs,
     fetch_listing,
     get_credentials,
+    iter_curated_catalog,
     iter_highlights,
     limit_refs,
 )
@@ -29,7 +31,8 @@ def scrape_mercadolivre() -> List[Dict[str, Any]]:
 
     try:
         client = MercadoLivreClient(*credentials)
-        refs = limit_refs(collect_product_refs(iter_highlights(client)), MAX_PRODUCTS)
+        combined = itertools.chain(iter_curated_catalog(client), iter_highlights(client))
+        refs = limit_refs(collect_product_refs(combined), MAX_PRODUCTS)
     except Exception as err:
         print(f"[Scraper Mercado Livre] Erro ao listar destaques: {err}")
         return []

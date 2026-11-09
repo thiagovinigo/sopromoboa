@@ -53,6 +53,17 @@ def test_awin_links_without_a_merchant_are_retired(db):
     assert available_ids(db) == ["gatry_puma"]
 
 
+def test_our_own_awin_links_are_not_retired(db):
+    own = "https://www.awin1.com/cread.php?awinmid=17806&awinaffid=3144638&clickref=x&ued=https%3A%2F%2Fwww.centauro.com.br%2Fp"
+    other = "https://www.awin1.com/cread.php?awinmid=17806&awinaffid=999&clickref=x&ued=https%3A%2F%2Fwww.centauro.com.br%2Fp"
+    add(db, "gatry_own", "https://www.centauro.com.br/p", own, "Centauro")
+    add(db, "gatry_other", "https://www.centauro.com.br/p2", other, "Centauro")
+    db.commit()
+
+    assert worker.retire_discontinued_items(db) == 1
+    assert available_ids(db) == ["gatry_own"]
+
+
 def test_unproven_lowest_price_is_cleared_only_for_catalog_items_with_a_single_price_point(db):
     from models import PriceHistoryModel
 

@@ -48,16 +48,71 @@ def test_create_managed_link():
     assert "tag=" in res["affiliate_url"]
 
 
-def test_build_awin_affiliate_url():
-    netshoes_url = "https://www.netshoes.com.br/tenis-nike-metcon-9-preto-JD8-1234"
-    tagged = build_affiliate_url(netshoes_url, utm_source="sopromoboa")
-    assert "awin1.com/cread.php" in tagged
-    assert "awinmid=11739" in tagged
-    assert "awinaffid=3144638" in tagged
-    assert "clickref=sopromoboa" in tagged
+def test_awin_link_is_applied_only_to_approved_stores():
+    lauri = build_affiliate_url("https://www.lauriesporte.com.br/halter-10kg", utm_source="sopromoboa")
+    assert "awin1.com/cread.php" in lauri
+    assert "awinmid=118977" in lauri
+    assert "awinaffid=3144638" in lauri
+    assert "clickref=sopromoboa" in lauri
 
-    centauro_url = "https://www.centauro.com.br/bermuda-termica-nike-999.html"
-    tagged_c = build_affiliate_url(centauro_url, utm_source="sopromoboa")
-    assert "awinmid=11674" in tagged_c
-    assert "awinaffid=3144638" in tagged_c
+    pending = build_affiliate_url("https://www.centauro.com.br/bermuda-termica-nike-999.html", utm_source="sopromoboa")
+    assert "awin1.com" not in pending
+    assert pending.startswith("https://www.centauro.com.br/bermuda-termica-nike-999.html")
 
+
+def test_awin_approval_can_be_enabled_by_env(monkeypatch):
+    monkeypatch.setenv("AWIN_APPROVED", "centauro, nike")
+    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="sopromoboa")
+    assert "awinmid=17652" in tagged
+    centauro = build_affiliate_url("https://www.centauro.com.br/bermuda-999.html", utm_source="sopromoboa")
+    assert "awinmid=17806" in centauro
+
+
+def test_awin_mid_can_be_overridden_by_env(monkeypatch):
+    monkeypatch.setenv("AWIN_APPROVED", "nike")
+    monkeypatch.setenv("AWIN_MID_NIKE", "99999")
+    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="sopromoboa")
+    assert "awinmid=99999" in tagged
+
+
+def test_awin_stores_are_split_by_site():
+    from affiliate import awin_stores_for_site, AWIN_STORES
+
+    quepromo = set(awin_stores_for_site("quepromo"))
+    mercagym = set(awin_stores_for_site("mercagym"))
+    assert "electrolux" in quepromo and "electrolux" not in mercagym
+    assert {"centauro", "nike", "adidas", "decathlon", "asics"} <= quepromo & mercagym
+    assert {"lauriesporte", "puma", "underarmour", "mizuno", "olympikus", "dafiti"} <= mercagym - quepromo
+    assert not ({"netshoes", "drogasil", "fastshop"} & set(AWIN_STORES))
+    assert all(cfg["status"] in {"approved", "pending", "not_requested"} for cfg in AWIN_STORES.values())
+
+
+def test_awin_detection_respects_domain_boundaries():
+    assert detect_store_from_url("https://www.asics.com.br/tenis") == "asics"
+    assert detect_store_from_url("https://loja.technos.com.br/relogio") == "technos"
+    assert detect_store_from_url("https://basics.com.br/x") == "outros"
+    assert detect_store_from_url("https://puma.com.evil.com/x") == "outros"
+    assert detect_store_from_url("https://evil.com@puma.com/x") == "puma"  # hostname real é puma.com
+    assert detect_store_from_url("https://www.amazon.com.br/dp/B1?x=nike.com.br") == "amazon"
+
+
+def test_awin_link_escapes_params_and_ignores_foreign_custom_tag(monkeypatch):
+    monkeypatch.setenv("AWIN_APPROVED", "centauro")
+    url = build_affiliate_url(
+        "https://www.centauro.com.br/p", store_slug="centauro", custom_tag="1&ued=https://evil.com#",
+        utm_source="a&b=c",
+    )
+    assert "awinmid=17806" in url
+    assert "evil.com" not in url
+    assert "clickref=a%26b%3Dc" in url
+    assert url.count("ued=") == 1
+
+
+def test_awin_link_refuses_non_http_destinations(monkeypatch):
+    from affiliate import build_awin_url
+    import pytest
+
+    with pytest.raises(ValueError):
+        build_awin_url("javascript:alert(1)//lauriesporte.com.br", merchant_id="118977")
+    monkeypatch.setenv("AWIN_APPROVED", "lauriesporte")
+    assert "awin1.com" not in build_affiliate_url("javascript:alert(1)//x", store_slug="lauriesporte")

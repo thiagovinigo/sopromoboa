@@ -4,9 +4,109 @@ Trata títulos brutos raspados de diferentes lojas para garantir consistência
 na base de dados e nos filtros do front-end.
 """
 import re
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from pricing import calculate_discount_percent
 from affiliate import build_affiliate_url, detect_store_from_url
+
+# Padrões que indicam que o item é um acessório/peça compatível e NÃO o aparelho principal
+ACCESSORY_TITLE_PATTERNS = [
+    r"\bcapinha\b",
+    r"^capa\b",
+    r"\bcapa\s+(protetora|anti\s*impacto|silicone|magsafe|transparente|carteira|magn[eé]tica|refor[cç]ada|aveludada|couro|para|p/|celular|iphone|galaxy|samsung|xiaomi|redmi|motorola|tablet|ipad|kindle)\b",
+    r"^case\b",
+    r"\bcase\s+(protetora|anti\s*impacto|silicone|magsafe|transparente|magn[eé]tica|para|p/|celular|iphone|galaxy|ipad|airpods)\b",
+    r"\bpel[ií]cula\b",
+    r"\bprotetor\s+de\s+(tela|lente|c[aâ]mera|cabo)\b",
+    r"\blente\s+(protetora|c[aâ]mera)\b",
+    r"^cabo\b",
+    r"\bcabo\s+(usb|tipo\s*c|type\s*c|lightning|carregador|de\s+dados|turbo|nylon|tran[cç]ado|hdmi|auxiliar|p2|p10|otg|adaptador|para|p/|iphone)\b",
+    r"^carregador\b",
+    r"\bcarregador\s+(turbo|r[aá]pido|sem\s+fio|induc[aã]o|magsafe|veicular|port[aá]til|de\s+parede|usb|tipo\s*c|para|p/|iphone|celular|samsung|xiaomi|motorola|bateria|pilha)\b",
+    r"\bfonte\s+(carregador|carregadora|turbo|usb|tipo\s*c|\d{2,3}w\s+para|para\s+iphone|para\s+celular|para\s+samsung)\b",
+    r"\badaptador\b",
+    r"\bleitor\s+de\s+cart[aã]o\b",
+    r"\bhub\s+usb\b",
+    r"\bconversor\b",
+    r"^suporte\b",
+    r"\bsuporte\s+(para|p/|de\s+mesa|de\s+parede|veicular|celular|monitor|tv|notebook|tablet|articulado|magn[eé]tico)\b",
+    r"\bbra[cç]o\s+articulado\b",
+    r"\btrip[eé]\b",
+    r"\bring\s*light\b",
+    r"\bpau\s+de\s+selfie\b",
+    r"\bbast[aã]o\s+de\s+selfie\b",
+    r"\bmicrofone\s+(de\s+)?lapela\b",
+    r"\bmicrofone\s+(sem\s+fio|s/\s*fio)\b",
+    r"\bcontrole\s+gamepad\b",
+    r"\bgamepad\b",
+    r"\bgatilho\s+(para\s+celular|gamer|mobile)\b",
+    r"\bcooler\s+(para\s+celular|mobile|magn[eé]tico)\b",
+    r"\bdedeira\b",
+    r"^pulseira\b",
+    r"\bpulseira\s+(compat[ií]vel|para|p/|de\s+silicone|milanese|nylon|couro|smartwatch|apple\s+watch|mi\s+band|galaxy\s+watch)\b",
+    r"\bcaneta\s+(touch|stylus|capacitiva|para\s+ipad|para\s+tablet)\b",
+    r"\bpopsocket\b",
+    r"\bpop\s+socket\b",
+    r"\bchaveiro\b",
+    r"\bcord[aã]o\s+de\s+pesco[cç]o\b",
+    r"\bbolsa\s+imperme[aá]vel\b",
+    r"\bbra[cç]adeira\s+corrida\b",
+    r"\btela\s+(frontal|lcd|oled|display|touch)\b",
+    r"\bdisplay\s+(frontal|lcd|oled|touch)\b",
+    r"\btampa\s+traseira\b",
+    r"\bbateria\s+(interna|de\s+reposi[cç][aã]o|compat[ií]vel)\b",
+    r"\bconector\s+de\s+carga\b",
+    r"\bflex\s+de\s+carga\b",
+    r"\bgaveta\s+(de\s+)?chip\b",
+    r"\bbandeja\s+(de\s+)?chip\b",
+    # Preposição indicando compatibilidade com o aparelho (ex.: "para iPhone 15", "p/ iPhone 15/16", "compatível com Galaxy S24")
+    r"\b(para|p/|compat[ií]vel\s+com|compat[ií]vel\s+p/|for)\s+(o\s+|a\s+|os\s+)?(apple\s+|samsung\s+|xiaomi\s+|motorola\s+|android\s+e\s+)?(iphone|galaxy|redmi|poco|moto\s+g|motorola|celular|smartphone|ipad|tablet|macbook|notebook|airpods|apple\s+watch|ps5|ps4|playstation|xbox|nintendo\s+switch)\b",
+    # Lista de múltiplos modelos de iPhone/Galaxy no mesmo título (típico de capinhas/películas/cabos)
+    r"\biphone\s+\d{1,2}\s*[/,\s]\s*\d{1,2}\s*[/,\s]\s*\d{1,2}\b",
+    r"\b\d{1,2}\s*/\s*\d{1,2}\s*/\s*\d{1,2}\s*(pro|max|plus|iphone)?\b",
+]
+
+ACCESSORY_QUERY_KEYWORDS = {
+    "capa", "capinha", "case", "pelicula", "película", "protetor", "lente",
+    "cabo", "carregador", "fonte", "adaptador", "leitor", "hub", "conversor",
+    "suporte", "braco", "braço", "articulado", "tripe", "tripé", "lapela",
+    "microfone", "gamepad", "controle", "gatilho", "cooler", "dedeira",
+    "pulseira", "alca", "alça", "caneta", "stylus", "popsocket", "chaveiro",
+    "cordao", "cordão", "bateria", "tela", "display", "tampa", "conector",
+    "flex", "gaveta", "bandeja", "acessorio", "acessório", "fone", "headset",
+}
+
+
+def is_accessory_title(title: str) -> bool:
+    """Retorna True se o título descreve um acessório, cabo, capa, película ou peça compatível."""
+    if not title:
+        return False
+    text = title.lower().strip()
+    for pat in ACCESSORY_TITLE_PATTERNS:
+        if re.search(pat, text):
+            return True
+    return False
+
+
+def query_wants_accessory(query: str) -> bool:
+    """Retorna True se o usuário digitou explicitamente um termo de acessório na busca."""
+    if not query:
+        return False
+    tokens = {t.lower().strip() for t in re.split(r"[\s\-_/,]+", query) if t.strip()}
+    return bool(tokens & ACCESSORY_QUERY_KEYWORDS)
+
+
+def min_plausible_device_price(query: str) -> float:
+    """Retorna um piso mínimo de preço coerente quando o usuário busca um aparelho principal (e não um acessório)."""
+    if not query or query_wants_accessory(query):
+        return 0.0
+    q_norm = query.lower().strip()
+    if re.search(r"\b(iphone|macbook|ps5|playstation\s*5|xbox\s+series|rtx\s*\d{4}|rx\s*\d{4}|galaxy\s+s2[2345]|galaxy\s+z|ipad)\b", q_norm):
+        return 800.0
+    if re.search(r"\b(galaxy|redmi\s+note|poco|smartphone|celular|moto\s+g|motorola\s+edge|nintendo\s+switch|ps4|playstation\s*4|notebook|laptop|smart\s+tv|geladeira|refrigerador|lava\s+e\s+seca|ar\s+condicionado|ar-condicionado)\b", q_norm):
+        return 400.0
+    if re.search(r"\b(monitor|tablet|air\s*fryer|fritadeira|micro-?ondas|aspirador\s+rob[oô]|rob[oô]\s+aspirador|airpods|kindle)\b", q_norm):
+        return 180.0
+    return 0.0
 
 # Mapeamento de categorias e palavras-chave
 CATEGORY_RULES = [
@@ -141,12 +241,99 @@ def detect_category(title: str, hint: Optional[str] = None) -> str:
         return hint or "geral"
 
     text = title.lower()
+    # Antes de classificar como smartphone/console/notebook pelo nome do aparelho citado,
+    # verifica se o título é de um acessório/peça compatível ("cabo para iPhone", "capinha Galaxy", etc.)
+    if is_accessory_title(text):
+        return "perifericos"
+
     for cat, patterns in CATEGORY_RULES:
         for pat in patterns:
             if re.search(pat, text):
                 return cat
 
     return hint or "geral"
+
+
+_SEARCH_STOPWORDS = {
+    "de", "da", "do", "dos", "das", "com", "para", "pra", "em", "no", "na",
+    "o", "a", "os", "as", "e", "por", "ate", "até", "um", "uma",
+}
+_SEARCH_UNITS = {
+    "polegadas", "polegada", "pol", "pols", "inches", "inch", "giga", "gigas",
+}
+
+
+def extract_search_tokens(query: str) -> List[str]:
+    """Extrai tokens significativos de uma busca, separando números colados a letras."""
+    if not query:
+        return []
+    q_norm = query.lower().strip()
+    q_norm = q_norm.replace('"', " ").replace("'", " ")
+    # Separa letras e números exceto sufixos conhecidos como ps5, ps4, s24, s23, g84, a55, m1, m2, m3
+    raw_tokens = [t.strip() for t in re.split(r"[\s\-_/,]+", q_norm) if t.strip()]
+    tokens: List[str] = []
+    for t in raw_tokens:
+        if t in _SEARCH_STOPWORDS or t in _SEARCH_UNITS or t.startswith("poleg"):
+            continue
+        # Se for ex: "128gb" -> mantém "128"
+        m_cap = re.match(r"^(\d+)(gb|tb|mb|hz|w|pol)$", t)
+        if m_cap:
+            tokens.append(m_cap.group(1))
+            continue
+        tokens.append(t)
+    return tokens or raw_tokens
+
+
+def score_search_match(title: str, price: float, query: str) -> Optional[int]:
+    """Avalia se um produto corresponde à busca e retorna um score de relevância (maior = mais relevante), ou None se não corresponder."""
+    if not title or not query:
+        return None
+
+    title_lower = title.lower().strip()
+    q_lower = query.lower().strip()
+    wants_acc = query_wants_accessory(q_lower)
+
+    if not wants_acc:
+        if is_accessory_title(title_lower):
+            return None
+        min_price = min_plausible_device_price(q_lower)
+        if min_price > 0 and (price or 0.0) < min_price:
+            return None
+
+    tokens = extract_search_tokens(q_lower)
+    if not tokens:
+        return None
+
+    for t in tokens:
+        if t.isdigit():
+            # Números de modelo/geração/capacidade (ex: '15', '24', '128', '32') exigem fronteira de palavra
+            pattern = rf"\b{re.escape(t)}(gb|tb|mb|pol|p|\"|\'|\b)"
+            if not re.search(pattern, title_lower):
+                return None
+        else:
+            if len(t) <= 3:
+                if not re.search(rf"\b{re.escape(t)}\b", title_lower):
+                    return None
+            elif t not in title_lower:
+                return None
+
+    # Cálculo de relevância
+    score = 60
+    clean_phrase = " ".join(tokens)
+    phrase_pos = title_lower.find(clean_phrase)
+    if phrase_pos == 0 or title_lower.startswith(("apple " + clean_phrase, "samsung " + clean_phrase, "smartphone " + clean_phrase, "console " + clean_phrase)):
+        score += 35
+    elif 0 < phrase_pos <= 25:
+        score += 25
+    elif phrase_pos > 25:
+        score += 10
+
+    # Se o usuário buscou o modelo base (ex: "iphone 15") sem "pro"/"max"/"plus", prioriza o modelo exato antes das variantes
+    for variant in ("pro", "max", "plus", "ultra", "fe", "lite", "mini", "slim"):
+        if variant not in tokens and re.search(rf"\b{variant}\b", title_lower):
+            score -= 8
+
+    return max(score, 10)
 
 
 def detect_brand(title: str) -> Optional[str]:
@@ -179,6 +366,8 @@ def normalize_listing(raw: Dict[str, Any]) -> Dict[str, Any]:
     url = raw.get("url", "")
     source = raw.get("source") or detect_store_from_url(url).capitalize()
     category = raw.get("category") or detect_category(title)
+    if category == "smartphones" and (is_accessory_title(title) or price < 350.0):
+        category = "perifericos"
     brand = raw.get("brand") or detect_brand(title)
     
     # Gera link comissionado se não fornecido. O domínio do link manda: o nome da loja pode ter espaços
