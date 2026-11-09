@@ -22,6 +22,17 @@ import { getDealThermometer, getWhatsAppShareUrl } from "@/lib/deal-helpers";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
+// Os selos ficam por cima da foto, que tem fundo branco: precisam de fundo sólido e texto claro para ler em qualquer foto.
+const OVERLAY_BADGE_BY_STATUS: Record<string, string> = {
+  opportunity: "bg-emerald-600 border-emerald-300/60",
+  warning: "bg-red-600 border-red-300/60",
+  declared: "bg-sky-600 border-sky-300/60",
+  regular: "bg-slate-700 border-slate-400/50",
+};
+const OVERLAY_BADGE_FALLBACK = OVERLAY_BADGE_BY_STATUS.regular;
+const OVERLAY_ACTION_BASE =
+  "w-8 h-8 flex items-center justify-center rounded-full bg-[#0d131f] border border-white/30 shadow-lg shadow-black/40 transition-all hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white";
+
 interface DealCardProps {
   deal: Deal;
   isFavorited?: boolean;
@@ -111,17 +122,18 @@ export default function DealCard({
   return (
     <div className="glass-card rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:-translate-y-1 hover:border-white/20 group relative bg-[#0d131f] border border-white/[0.07]">
       {/* Badges superiores: Termômetro Anti-Metade do Dobro + % Desconto */}
-      <div className="absolute top-2.5 left-2.5 z-20 flex flex-wrap gap-1.5 items-center pointer-events-none">
+      <div className="absolute top-2.5 left-2.5 z-20 flex flex-col gap-1 items-start max-w-[calc(100%-7.5rem)] pointer-events-none">
         <span
           title={thermometer.explanation}
-          className={`px-2 py-0.5 text-[10px] font-bold rounded-md flex items-center gap-1 border backdrop-blur-md shadow-sm ${thermometer.badgeClass}`}
+          className={`px-2 py-1 text-[11px] leading-none font-bold text-white rounded-md border shadow-md shadow-black/30 ${
+            OVERLAY_BADGE_BY_STATUS[thermometer.status] ?? OVERLAY_BADGE_FALLBACK
+          }`}
         >
-          <span>{thermometer.icon}</span>
-          <span>{thermometer.label}</span>
+          {thermometer.label}
         </span>
 
         {deal.discount_percent > 0 && (
-          <span className="px-1.5 py-0.5 text-[10px] font-black text-white bg-rose-600 rounded-md shadow-sm">
+          <span className="px-2 py-1 text-xs leading-none font-black text-white bg-rose-600 rounded-md border border-rose-300/60 shadow-md shadow-black/30">
             -{deal.discount_percent}%
           </span>
         )}
@@ -132,10 +144,11 @@ export default function DealCard({
         <button
           onClick={handleShareWhatsApp}
           title="Compartilhar oferta no WhatsApp com 1 clique"
-          className="p-1.5 rounded-full bg-black/40 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-white/10 hover:border-emerald-500/40 transition-all hover:scale-110 shadow-sm"
+          aria-label="Compartilhar oferta no WhatsApp"
+          className={`${OVERLAY_ACTION_BASE} text-emerald-400 hover:bg-emerald-600 hover:text-white`}
         >
           <svg
-            className="w-3.5 h-3.5 fill-current"
+            className="w-4 h-4 fill-current"
             viewBox="0 0 24 24"
           >
             <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 20.15C10.57 20.15 9.12 19.76 7.85 19L7.55 18.82L4.43 19.64L5.26 16.6L5.06 16.29C4.24 14.97 3.81 13.47 3.81 11.91C3.81 7.37 7.5 3.69 12.05 3.69C14.25 3.69 16.32 4.55 17.88 6.11C19.43 7.67 20.29 9.74 20.29 11.93C20.28 16.48 16.59 20.15 12.05 20.15ZM16.56 14.37C16.31 14.25 15.09 13.65 14.86 13.56C14.63 13.48 14.47 13.44 14.3 13.68C14.14 13.93 13.68 14.47 13.54 14.63C13.4 14.79 13.26 14.81 13.01 14.69C12.76 14.56 11.96 14.3 11.01 13.46C10.27 12.8 9.77 11.99 9.63 11.74C9.49 11.5 9.62 11.36 9.74 11.24C9.85 11.13 10 10.95 10.12 10.81C10.24 10.67 10.28 10.57 10.36 10.4C10.44 10.24 10.4 10.1 10.34 9.98C10.28 9.86 9.82 8.72 9.63 8.25C9.44 7.79 9.25 7.85 9.11 7.84C8.98 7.84 8.82 7.84 8.66 7.84C8.5 7.84 8.24 7.9 8.02 8.14C7.8 8.38 7.18 8.96 7.18 10.14C7.18 11.32 8.04 12.46 8.16 12.62C8.28 12.78 9.85 15.2 12.26 16.24C12.83 16.49 13.28 16.63 13.62 16.74C14.2 16.93 14.72 16.9 15.14 16.84C15.61 16.77 16.58 16.25 16.78 15.68C16.98 15.11 16.98 14.63 16.92 14.53C16.86 14.43 16.81 14.49 16.56 14.37Z" />
@@ -145,10 +158,9 @@ export default function DealCard({
         <button
           onClick={handleToggleFavorite}
           title={isFav ? "Remover dos favoritos" : "Salvar nos favoritos"}
-          className={`p-1.5 rounded-full backdrop-blur-md transition-all ${
-            isFav
-              ? "bg-rose-600 text-white shadow-md scale-105"
-              : "bg-black/40 text-gray-400 hover:text-rose-400 hover:bg-black/60 border border-white/10"
+          aria-label={isFav ? "Remover dos favoritos" : "Salvar nos favoritos"}
+          className={`${OVERLAY_ACTION_BASE} ${
+            isFav ? "!bg-rose-600 !border-rose-300 text-white" : "text-white hover:text-rose-300"
           }`}
         >
           <svg
@@ -159,7 +171,7 @@ export default function DealCard({
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="w-3.5 h-3.5"
+            className="w-4 h-4"
           >
             <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
           </svg>
@@ -168,9 +180,10 @@ export default function DealCard({
         <Link
           href={`/busca-personalizada?q=${encodeURIComponent(deal.title)}`}
           title="Comparar preços em todas as lojas"
-          className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-gray-400 hover:text-cyan-400 border border-white/10 transition-colors"
+          aria-label="Comparar preços em todas as lojas"
+          className={`${OVERLAY_ACTION_BASE} text-cyan-300 hover:text-white hover:bg-cyan-700`}
         >
-          <Bot className="w-3.5 h-3.5" />
+          <Bot className="w-4 h-4" />
         </Link>
       </div>
 
