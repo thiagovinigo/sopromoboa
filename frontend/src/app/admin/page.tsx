@@ -480,7 +480,7 @@ export default function AdminPage() {
                 <Lock className="w-8 h-8" />
               </div>
               <h1 className="text-2xl font-black text-white tracking-tight">
-                Painel Restrito Só Promo Boa
+                Painel Restrito QuePromo
               </h1>
               <p className="text-xs text-gray-400 leading-relaxed">
                 Área exclusiva de administração, credenciamento de afiliados e inteligência do sistema. Digite a senha mestra para acessar.
@@ -1088,7 +1088,7 @@ export default function AdminPage() {
                 <option value="whatsapp">Grupo de Ofertas no WhatsApp</option>
                 <option value="instagram">Instagram Stories / Bio</option>
                 <option value="tiktok">TikTok / Vídeos</option>
-                <option value="site">Radar Só Promo Boa</option>
+                <option value="site">Radar QuePromo</option>
               </select>
             </div>
 
@@ -1521,7 +1521,7 @@ export default function AdminPage() {
                   Agente Caçador de <span className="text-violet-400">Lojas Bem Avaliadas</span>
                 </h2>
                 <p className="text-sm text-gray-300 leading-relaxed">
-                  Nosso agente de inteligência artificial vasculha a internet auditando a reputação de e-commerces brasileiros (selos <strong>RA1000</strong> e <strong>Ótimo</strong> no Reclame Aqui, Ebit, índices de solução) e mapeia programas de afiliados para você expandir o catálogo do Só Promo Boa com 1 clique.
+                  Nosso agente de inteligência artificial vasculha a internet auditando a reputação de e-commerces brasileiros (selos <strong>RA1000</strong> e <strong>Ótimo</strong> no Reclame Aqui, Ebit, índices de solução) e mapeia programas de afiliados para você expandir o catálogo do QuePromo com 1 clique.
                 </p>
                 {hunterSuccessMsg && (
                   <div className="p-3 rounded-xl bg-violet-500/20 border border-violet-500/40 text-violet-200 text-xs font-semibold animate-fade-in flex items-center gap-2">
@@ -1884,7 +1884,7 @@ export default function AdminPage() {
                 Cadastre-se nas Melhores <span className="text-amber-400">Lojas de Afiliados</span>
               </h2>
               <p className="text-sm text-gray-300 leading-relaxed">
-                Para começar a faturar comissões em cada venda gerada pelo <strong>Só Promo Boa</strong>, cadastre-se nos programas oficiais abaixo. Assim que receber sua aprovação, cole sua <strong>Tag/ID</strong> diretamente no card correspondente para ativar a comissão automática em todos os links da plataforma!
+                Para começar a faturar comissões em cada venda gerada pelo <strong>QuePromo</strong>, cadastre-se nos programas oficiais abaixo. Assim que receber sua aprovação, cole sua <strong>Tag/ID</strong> diretamente no card correspondente para ativar a comissão automática em todos os links da plataforma!
               </p>
             </div>
           </div>

@@ -1,4 +1,4 @@
-"""API REST do Só Promo Boa — Agregador de Promoções e Radar de Queda de Preços."""
+"""API REST do QuePromo — Agregador de Promoções e Radar de Queda de Preços."""
 import os
 import secrets
 import hashlib
@@ -44,7 +44,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Só Promo Boa API",
+    title="QuePromo API",
     description="Backend oficial para agregação de promoções, radar de preços baixos e gestão de links de afiliados.",
     version="1.0.0"
 )
@@ -1759,7 +1759,7 @@ def get_worker_status(db: Session = Depends(get_db)):
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "ok", "app": "SoPromoBoa", "timestamp": datetime.utcnow()}
+    return {"status": "ok", "app": "QuePromo", "timestamp": datetime.utcnow()}
 
 
 # ==========================================
@@ -1870,7 +1870,7 @@ def run_hunter_cycle(db: Session = Depends(get_db)):
 
 @app.post("/api/agent/hunter/stores/{store_id}/approve")
 def approve_hunter_store(store_id: int, db: Session = Depends(get_db)):
-    """Aprova uma loja descoberta e a integra automaticamente ao catálogo do Só Promo Boa."""
+    """Aprova uma loja descoberta e a integra automaticamente ao catálogo do QuePromo."""
     agent = StoreHunterAgent(db)
     result = agent.approve_store(store_id)
     if not result.get("success"):

@@ -39,7 +39,7 @@ const STORE_METADATA: Record<
     description:
       "O maior marketplace da América Latina. Lojas oficiais, entrega Full no mesmo dia e cupons de desconto.",
     highlights: ["Entrega FULL Rápida", "Programa Compra Garantida", "Cupons Diários de Desconto"],
-    officialUrl: "https://www.mercadolivre.com.br?matt_tool=sopromoboa&utm_source=sopromoboa",
+    officialUrl: "https://www.mercadolivre.com.br?matt_tool=sopromoboa&utm_source=quepromo",
     bgGradient: "from-yellow-950/30 to-gray-900/90",
     badgeColor: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30",
     borderColor: "hover:border-yellow-500/40",
@@ -48,7 +48,7 @@ const STORE_METADATA: Record<
     description:
       "Gigante varejista nacional com fortes ofertas em eletrodomésticos, TVs, celulares e retirada rápida em loja.",
     highlights: ["Retira Rápido em Loja", "Descontos no Pix", "Linha Branca & TV"],
-    officialUrl: "https://www.magazineluiza.com.br?utm_source=sopromoboa&utm_medium=afiliado",
+    officialUrl: "https://www.magazineluiza.com.br?utm_source=quepromo&utm_medium=afiliado",
     bgGradient: "from-blue-950/30 to-gray-900/90",
     badgeColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
     borderColor: "hover:border-blue-500/40",
@@ -66,7 +66,7 @@ const STORE_METADATA: Record<
     description:
       "Marketplace com cupons de frete grátis sem valor mínimo, grandes marcas oficiais e ofertas diárias.",
     highlights: ["Cupons de Frete Grátis", "Shopee Oficial Grandes Marcas", "Moedas de Desconto"],
-    officialUrl: "https://shopee.com.br?utm_source=sopromoboa",
+    officialUrl: "https://shopee.com.br?utm_source=quepromo",
     bgGradient: "from-rose-950/30 to-gray-900/90",
     badgeColor: "text-rose-400 bg-rose-500/10 border-rose-500/30",
     borderColor: "hover:border-rose-500/40",
@@ -125,7 +125,7 @@ export default function LojasPage() {
               const meta = STORE_METADATA[store.slug] || {
                 description: "Loja oficial monitorada no radar de promoções.",
                 highlights: ["Compra Segura", "Nota Fiscal", "Garantia"],
-                officialUrl: "https://sopromoboa.com.br",
+                officialUrl: "https://quepromo.com.br",
                 bgGradient: "from-gray-900 to-gray-950",
                 badgeColor: "text-gray-300 bg-gray-800 border-gray-700",
                 borderColor: "hover:border-gray-700",
@@ -211,7 +211,7 @@ export default function LojasPage() {
           Transparência & Links Comissionados
         </div>
         <p>
-          O Só Promo Boa é uma plataforma independente de agregação e auditoria de promoções. Todos os links de lojas parceiras contêm parâmetros oficiais de rastreamento dos programas de afiliados (Amazon Associates, Parceiro Magalu, Mercado Livre Afiliados, KaBuM! Afiliados). Isso garante que o usuário receba o desconto original e suporte o projeto sem nenhum custo adicional na compra.
+          O QuePromo é uma plataforma independente de agregação e auditoria de promoções. Todos os links de lojas parceiras contêm parâmetros oficiais de rastreamento dos programas de afiliados (Amazon Associates, Parceiro Magalu, Mercado Livre Afiliados, KaBuM! Afiliados). Isso garante que o usuário receba o desconto original e suporte o projeto sem nenhum custo adicional na compra.
         </p>
       </section>
     </div>

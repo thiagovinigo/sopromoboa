@@ -1,4 +1,4 @@
-# Deploy do backend do So Promo Boa para a VPS Locaweb
+# Deploy do backend do QuePromo para a VPS Locaweb
 # Uso: .\scripts\deploy-backend.ps1
 
 $VPS_HOST = "191.252.191.189"

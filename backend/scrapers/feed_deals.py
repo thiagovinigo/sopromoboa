@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 from scrapers.price_utils import extract_price
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; SoPromoBoaBot/1.0; +https://sopromoboa.com.br)",
+    "User-Agent": "Mozilla/5.0 (compatible; QuePromoBot/1.0; +https://quepromo.com.br)",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
 }
 

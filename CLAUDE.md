@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Só Promo Boa" — Brazilian deals aggregator / price-drop radar with affiliate link management. Python FastAPI backend + scraper worker (SQLite), Next.js 15 / React 19 / Tailwind frontend. Code comments, UI strings and README are in Portuguese (pt-BR); match that.
+"QuePromo" — Brazilian deals aggregator / price-drop radar with affiliate link management. Python FastAPI backend + scraper worker (SQLite), Next.js 15 / React 19 / Tailwind frontend. Code comments, UI strings and README are in Portuguese (pt-BR); match that.
 
 ## Commands
 

@@ -1,14 +1,14 @@
-# Só Promo Boa 🔥
+# QuePromo 🔥
 > **O Radar Oficial de Quedas de Preço & Agregador de Ofertas Reais do Brasil**
 
-O **Só Promo Boa** é uma plataforma completa inspirada na arquitetura distribuída do `BuscaArmas` (FastAPI + Workers Concorrentes + Scrapers Modulares + Next.js), adaptada para monitorar **promoções legítimas, quedas reais de preço e gestão profissional de links de afiliados** no varejo brasileiro (Amazon Brasil, Mercado Livre, Magazine Luiza, KaBuM!, Shopee, etc.).
+O **QuePromo** é uma plataforma completa inspirada na arquitetura distribuída do `BuscaArmas` (FastAPI + Workers Concorrentes + Scrapers Modulares + Next.js), adaptada para monitorar **promoções legítimas, quedas reais de preço e gestão profissional de links de afiliados** no varejo brasileiro (Amazon Brasil, Mercado Livre, Magazine Luiza, KaBuM!, Shopee, etc.).
 
 ---
 
 ## 🏗️ Arquitetura do Sistema
 
 ```
-sopromoboa/
+quepromo/
 ├── backend/
 │   ├── scrapers/              # Plugins de raspagem auto-descobertos dinamicamente
 │   │   ├── amazon_deals.py    # Scraper de ofertas da Amazon Brasil
@@ -112,7 +112,7 @@ pm2 logs
 - **Execução Paralela:** Roda através de `ThreadPoolExecutor` com isolamento de transações de banco de dados por loja.
 
 ### 3. Sistema de Gestão & Geração de Links de Afiliados (`/afiliados`)
-- **Gerador Universal:** Permite colar qualquer link de produto de grandes marketplaces (Amazon, Magalu, Mercado Livre, KaBuM!, Shopee) e gerar a URL comissionada com tags e UTMs (`utm_source=sopromoboa`, `utm_medium=redes_sociais`).
+- **Gerador Universal:** Permite colar qualquer link de produto de grandes marketplaces (Amazon, Magalu, Mercado Livre, KaBuM!, Shopee) e gerar a URL comissionada com tags e UTMs (`utm_source=quepromo`, `utm_medium=redes_sociais`).
 - **Redirecionamento Seguro (`/r/{id}`):** Os cards do site apontam para rotas de redirecionamento interno que auditam o clique e injetam a tag de afiliado correta em tempo de execução.
 - **Configuração de Tags:** Cadastre ou edite suas tags de comissão diretamente na tabela `affiliate_programs`.
 

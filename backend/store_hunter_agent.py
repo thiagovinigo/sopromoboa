@@ -1,7 +1,7 @@
 """Store Hunter AI Agent - Agente Autônomo de Descoberta e Auditoria de Lojas Confiáveis.
 
 Rastreia, audita e analisa e-commerces brasileiros com alta reputação (Reclame Aqui,
-Ebit, Trustpilot) e programas ativos de afiliados para expansão contínua do Só Promo Boa.
+Ebit, Trustpilot) e programas ativos de afiliados para expansão contínua do QuePromo.
 """
 import os
 import sys
@@ -399,7 +399,7 @@ class StoreHunterAgent:
         }
 
     def approve_store(self, store_id: int) -> Dict[str, Any]:
-        """Aprova a loja e a integra automaticamente à tabela de lojas ativas do Só Promo Boa."""
+        """Aprova a loja e a integra automaticamente à tabela de lojas ativas do QuePromo."""
         store = self.db.query(DiscoveredStoreModel).filter(DiscoveredStoreModel.id == store_id).first()
         if not store:
             return {"success": False, "message": "Loja não encontrada."}
@@ -427,7 +427,7 @@ class StoreHunterAgent:
         self.db.commit()
         return {
             "success": True,
-            "message": f"Loja '{store.name}' aprovada e integrada com sucesso ao Só Promo Boa!",
+            "message": f"Loja '{store.name}' aprovada e integrada com sucesso ao QuePromo!",
             "slug": store.slug
         }
 

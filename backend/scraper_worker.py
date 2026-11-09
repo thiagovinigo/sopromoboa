@@ -1,4 +1,4 @@
-"""Worker de Scraping Concorrente e Detecção de Queda de Preços do Só Promo Boa.
+"""Worker de Scraping Concorrente e Detecção de Queda de Preços do QuePromo.
 
 - Descobre dinamicamente os scrapers na pasta 'scrapers/'
 - Executa raspagens concorrentes via ThreadPoolExecutor
@@ -314,7 +314,7 @@ def run_worker_once() -> Dict[str, Any]:
     """Executa uma rodada completa de scrapers concorrentes."""
     scrapers = discover_scrapers()
     print("\n=======================================================")
-    print(f"[SO PROMO BOA WORKER] Iniciando varredura com {len(scrapers)} scrapers ativos...")
+    print(f"[QUEPROMO WORKER] Iniciando varredura com {len(scrapers)} scrapers ativos...")
     print("=======================================================")
 
     cleanup_db = SessionLocal()

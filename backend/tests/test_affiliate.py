@@ -12,7 +12,7 @@ def test_build_amazon_affiliate_url():
     url = "https://www.amazon.com.br/dp/B0CHX1W1XY?ref=abc"
     tagged = build_affiliate_url(url, store_slug="amazon", custom_tag="minhatag-20")
     assert "tag=minhatag-20" in tagged
-    assert "utm_source=sopromoboa" in tagged
+    assert "utm_source=quepromo" in tagged
 
 
 def test_build_magalu_affiliate_url():
@@ -49,29 +49,29 @@ def test_create_managed_link():
 
 
 def test_awin_link_is_applied_only_to_approved_stores():
-    lauri = build_affiliate_url("https://www.lauriesporte.com.br/halter-10kg", utm_source="sopromoboa")
+    lauri = build_affiliate_url("https://www.lauriesporte.com.br/halter-10kg", utm_source="quepromo")
     assert "awin1.com/cread.php" in lauri
     assert "awinmid=118977" in lauri
     assert "awinaffid=3144638" in lauri
-    assert "clickref=sopromoboa" in lauri
+    assert "clickref=quepromo" in lauri
 
-    pending = build_affiliate_url("https://www.centauro.com.br/bermuda-termica-nike-999.html", utm_source="sopromoboa")
+    pending = build_affiliate_url("https://www.centauro.com.br/bermuda-termica-nike-999.html", utm_source="quepromo")
     assert "awin1.com" not in pending
     assert pending.startswith("https://www.centauro.com.br/bermuda-termica-nike-999.html")
 
 
 def test_awin_approval_can_be_enabled_by_env(monkeypatch):
     monkeypatch.setenv("AWIN_APPROVED", "centauro, nike")
-    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="sopromoboa")
+    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="quepromo")
     assert "awinmid=17652" in tagged
-    centauro = build_affiliate_url("https://www.centauro.com.br/bermuda-999.html", utm_source="sopromoboa")
+    centauro = build_affiliate_url("https://www.centauro.com.br/bermuda-999.html", utm_source="quepromo")
     assert "awinmid=17806" in centauro
 
 
 def test_awin_mid_can_be_overridden_by_env(monkeypatch):
     monkeypatch.setenv("AWIN_APPROVED", "nike")
     monkeypatch.setenv("AWIN_MID_NIKE", "99999")
-    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="sopromoboa")
+    tagged = build_affiliate_url("https://www.nike.com.br/tenis-air-max", utm_source="quepromo")
     assert "awinmid=99999" in tagged
 
 

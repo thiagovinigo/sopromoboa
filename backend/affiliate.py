@@ -1,4 +1,4 @@
-"""Sistema de Gestão e Geração de Links de Afiliados do Só Promo Boa.
+"""Sistema de Gestão e Geração de Links de Afiliados do QuePromo.
 
 Permite:
 1. Converter automaticamente URLs raspadas de lojas para links comissionados.
@@ -127,7 +127,7 @@ def build_affiliate_url(
     original_url: str,
     store_slug: Optional[str] = None,
     custom_tag: Optional[str] = None,
-    utm_source: str = "sopromoboa",
+    utm_source: str = "quepromo",
     utm_medium: str = "web"
 ) -> str:
     """Aplica as tags de afiliado e UTMs na URL do produto.
@@ -231,7 +231,7 @@ def create_managed_link(
         raw_url,
         store_slug=store,
         custom_tag=custom_tag,
-        utm_source="sopromoboa",
+        utm_source="quepromo",
         utm_medium="afiliados"
     )
     return {

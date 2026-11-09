@@ -1,4 +1,4 @@
-"""Atualiza todas as URLs de produtos do catálogo do Só Promo Boa para links 100% funcionais.
+"""Atualiza todas as URLs de produtos do catálogo do QuePromo para links 100% funcionais.
 
 Para ofertas com URLs geradas com IDs internos, substitui por links diretos de busca
 otimizada na loja oficial (Amazon, Mercado Livre, Magalu, KaBuM, Shopee, Casas Bahia)
