@@ -54,8 +54,14 @@ export default function HomeClient({
   // A primeira página já chega renderizada pelo servidor (indexável); evita rebuscar no mount.
   const skipInitialLoad = useRef(initialDeals.length > 0);
 
-  // Filtros
+  // Busca: `searchInput` é o que a pessoa digita; `search` é o termo aplicado, que só muda ao enviar (Enter ou "Buscar").
+  // Se a lista dependesse do texto digitado, cada letra dispararia uma busca nova e as respostas chegariam fora de ordem.
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  // Só a resposta da última busca pode atualizar a tela: respostas antigas e lentas são descartadas.
+  const latestRequest = useRef(0);
+
+  // Filtros
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [activeStore, setActiveStore] = useState<string>("");
   const [onlyDrops, setOnlyDrops] = useState<boolean>(false);
@@ -88,10 +94,11 @@ export default function HomeClient({
   }, []);
 
   const loadDeals = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setLoading(true);
     try {
       const res = await fetchDeals({
-        q: search.trim() || undefined,
+        q: search || undefined,
         category: activeCategory || undefined,
         source: activeStore || undefined,
         only_drops: onlyDrops,
@@ -99,10 +106,11 @@ export default function HomeClient({
         limit: pageSize,
         offset: page * pageSize,
       });
+      if (requestId !== latestRequest.current) return;
       setDeals(res.items);
       setTotal(res.total);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, [search, activeCategory, activeStore, onlyDrops, sort, page]);
 
@@ -116,8 +124,9 @@ export default function HomeClient({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Aplicar o termo (ou limpá-lo, se o campo estiver vazio) dispara a busca pelo efeito de loadDeals, uma única vez.
     setPage(0);
-    loadDeals();
+    setSearch(searchInput.trim());
   };
 
   const totalPages = Math.ceil(total / pageSize);
@@ -148,9 +157,13 @@ export default function HomeClient({
             <div className="relative flex items-center bg-[#080c14] border border-white/10 rounded-2xl p-1.5 shadow-inner focus-within:border-rose-500/60 transition-colors">
               <Search className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
               <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                type="search"
+                name="q"
+                aria-label="Buscar produtos"
+                autoComplete="off"
+                enterKeyHint="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Busque por iPhone, Monitor, TV, Notebook..."
                 className="w-full bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none"
               />
