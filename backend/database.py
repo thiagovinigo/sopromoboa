@@ -2,11 +2,19 @@ import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from text_utils import fold_text
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB_PATH = os.path.join(BASE_DIR, "sopromoboa.db").replace("\\", "/")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+
+def register_sqlite_functions(dbapi_connection) -> None:
+    """Expõe fold_text() ao SQL para a busca ignorar acentos (o LIKE do SQLite só ignora caixa em ASCII)."""
+    dbapi_connection.create_function("fold_text", 1, fold_text, deterministic=True)
+
 
 engine = create_engine(
     DATABASE_URL,
@@ -18,6 +26,7 @@ engine = create_engine(
 if DATABASE_URL.startswith("sqlite"):
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
+        register_sqlite_functions(dbapi_connection)
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")

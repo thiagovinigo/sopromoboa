@@ -7,6 +7,7 @@ import re
 from typing import Dict, Any, Tuple, Optional, List
 from pricing import calculate_discount_percent
 from affiliate import build_affiliate_url, detect_store_from_url
+from text_utils import fold_text
 
 # Padrões que indicam que o item é um acessório/peça compatível e NÃO o aparelho principal
 ACCESSORY_TITLE_PATTERNS = [
@@ -267,7 +268,7 @@ def extract_search_tokens(query: str) -> List[str]:
     """Extrai tokens significativos de uma busca, separando números colados a letras."""
     if not query:
         return []
-    q_norm = query.lower().strip()
+    q_norm = fold_text(query).strip()
     q_norm = q_norm.replace('"', " ").replace("'", " ")
     # Separa letras e números exceto sufixos conhecidos como ps5, ps4, s24, s23, g84, a55, m1, m2, m3
     raw_tokens = [t.strip() for t in re.split(r"[\s\-_/,]+", q_norm) if t.strip()]
@@ -303,6 +304,9 @@ def score_search_match(title: str, price: float, query: str) -> Optional[int]:
     tokens = extract_search_tokens(q_lower)
     if not tokens:
         return None
+
+    # Tokens já vêm sem acento; compara com o título também sem acento ("hermetico" acha "Hermético").
+    title_lower = fold_text(title_lower)
 
     for t in tokens:
         if t.isdigit():

@@ -331,7 +331,8 @@ def query_search_candidates(base_query, target_query: str, sort: str, db: Sessio
     def _run_filter() -> List[ProductModel]:
         q_sql = base_query
         for lt in lead_tokens:
-            q_sql = q_sql.filter(ProductModel.title.ilike(f"%{lt}%"))
+            # lt já vem sem acento (extract_search_tokens); fold_text() faz o mesmo com o título no SQLite.
+            q_sql = q_sql.filter(func.fold_text(ProductModel.title).like(f"%{lt}%"))
         if not query_wants_accessory(target_query):
             min_dev_p = min_plausible_device_price(target_query)
             if min_dev_p > 0:
