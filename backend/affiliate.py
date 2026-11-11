@@ -28,7 +28,8 @@ SITE_MERCAGYM = "mercagym"
 #   mid           ID do anunciante (awinmid). AWIN_MID_<SLUG> no .env tem prioridade, sem mexer no código.
 #   mid_verified  True se o ID foi conferido no painel.
 #   status        "approved": o link Awin é aplicado. "pending": candidatura enviada, ainda sem comissão, então o
-#                 link original é mantido. "not_requested": ainda não pedimos. Quando a Awin aprovar, basta listar o
+#                 link original é mantido. "not_requested": ainda não pedimos. "rejected": a Awin recusou (link original mantido).
+#                 Quando a Awin aprovar, basta listar o
 #                 slug em AWIN_APPROVED no .env (separado por vírgula), sem deploy de código.
 #   sites         em quais sites a loja entra ("quepromo", "mercagym").
 #   filter_health True se a loja vende medicamento: o feed precisa descartar esses itens (Anvisa RDC 96/2008).
@@ -52,7 +53,8 @@ AWIN_STORES = {
     "authenticfeet": _store("28775", "authenticfeet.com.br", "Authentic Feet", "pending", _BOTH),
     "technos": _store("28161", "technos.com.br", "Technos", "pending", _BOTH),
     "puma": _store("32675", "puma.com", "PUMA Brasil", "pending", _GYM),
-    "underarmour": _store("18864", "underarmour.com.br", "Under Armour Brasil", "pending", _GYM),
+    # Recusada em 10/11/2026 ("URL inativo, página não encontrada"); a Awin só permite recandidatar a partir de 11/12/2026.
+    "underarmour": _store("18864", "underarmour.com.br", "Under Armour Brasil", "rejected", _GYM),
     "mizuno": _store("51271", "mizuno.com.br", "Mizuno Brasil", "pending", _GYM),
     "olympikus": _store("17698", "olympikus.com.br", "Olympikus", "pending", _GYM),
     "dafiti": _store("17697", "dafiti.com.br", "Dafiti", "approved", _GYM),

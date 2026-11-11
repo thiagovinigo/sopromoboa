@@ -84,7 +84,7 @@ def test_awin_stores_are_split_by_site():
     assert {"centauro", "nike", "adidas", "decathlon", "asics"} <= quepromo & mercagym
     assert {"lauriesporte", "puma", "underarmour", "mizuno", "olympikus", "dafiti"} <= mercagym - quepromo
     assert not ({"netshoes", "drogasil", "fastshop"} & set(AWIN_STORES))
-    assert all(cfg["status"] in {"approved", "pending", "not_requested"} for cfg in AWIN_STORES.values())
+    assert all(cfg["status"] in {"approved", "pending", "not_requested", "rejected"} for cfg in AWIN_STORES.values())
 
 
 def test_awin_detection_respects_domain_boundaries():
