@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 "QuePromo" — Brazilian deals aggregator / price-drop radar with affiliate link management. Python FastAPI backend + scraper worker (SQLite), Next.js 15 / React 19 / Tailwind frontend. Code comments, UI strings and README are in Portuguese (pt-BR); match that.
 
+## Dois projetos (leia `MAPA-DOS-PROJETOS.md` antes de SEO, deploy ou Search Console)
+
+Este repositório é **só o QuePromo** (`quepromo.com.br`). O **MercaGym** (`mercagym.com.br`) é outro projeto, em `C:\Users\User\buscafitness` (repo `thiagovinigo/mercagym`), com código, deploy e SEO próprios. Corrigir algo aqui não corrige o MercaGym. Frontend do QuePromo roda na **Vercel** (projeto `sopromoboa`; `git push` não publica); backend na VPS `/opt/sopromoboa`. O MercaGym inteiro roda na mesma VPS, em `/opt/mercagym`, com deploy pontual (nunca `deploy-mercagym.ps1`).
+
 ## Commands
 
 Backend (run from `backend/`; a Windows venv lives at `backend/venv`, not committed):
@@ -22,7 +26,7 @@ Frontend (from `frontend/`): `npm run dev` (port 3000), `npm run build`, `npm ru
 
 Full stack: `pm2 start ecosystem.config.cjs` from the root (Next dev :3000, API :8001 via `backend/start.cjs`, worker via `backend/start_worker.cjs`; both spawn `backend/venv/Scripts/python.exe`). `docker-compose.yml` is an alternative but uses port **8000** for the API, while code defaults and PM2 use **8001**.
 
-Deploy (the only deploy script): `scripts/deploy-backend.ps1` runs pytest, tars `backend/`, scp's to the VPS and restarts the `api`/`worker` containers using `backend/docker-compose.vps.yml` + `.env.vps`.
+Deploy do backend (único script de deploy; **não publica o frontend**, que vai pela Vercel — ver `MAPA-DOS-PROJETOS.md`): `scripts/deploy-backend.ps1` runs pytest, tars `backend/`, scp's to the VPS and restarts the `api`/`worker` containers using `backend/docker-compose.vps.yml` + `.env.vps`.
 
 ## Architecture
 
