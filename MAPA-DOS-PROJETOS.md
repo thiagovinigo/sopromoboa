@@ -28,9 +28,10 @@ O nome "sopromoboa" é o começo do QuePromo. A fase 1 do rename (marca, `utm_so
 
 ### QuePromo: frontend (Next.js)
 - Está ligado ao projeto Vercel `sopromoboa` (`frontend/.vercel/project.json`: `projectId prj_cUzFpXzaFkbeveVyHKiMfnbD3ETQ`, `orgId team_nlQFHL0mqQiI3wpTq8XyC3Fg`). A pasta `.vercel` é ignorada pelo git.
-- **`git push` não publicou o frontend** (verificado em 12/11/2026: o commit `0ea8bb5` estava na `main` e o site seguia com o comportamento antigo). O caminho provável é pela CLI: `cd frontend; vercel --prod`.
+- **`git push` não publica o frontend** (verificado em 12/11/2026: o commit `0ea8bb5` estava na `main` e o site seguia com o comportamento antigo).
+- **Como publicar (confirmado em 12/11/2026):** `cd frontend; vercel --prod --yes`. A CLI já está autenticada (conta `thiagovinigo-3734`), faz o build e aponta o alias `quepromo.com.br`. Sempre pedir "sim" ao dono antes, é produção. Depois, confirmar com `curl`.
 - O conector da Vercel do Claude devolve 403 ao listar os deploys deste projeto e só enxerga o projeto `nutri`. Para acompanhar o deploy, use a CLI (`vercel --scope <time> list sopromoboa`) ou o painel.
-- **A confirmar:** se existe integração Git na Vercel. Até confirmar, não assumir que o push publica.
+- Os deploys anteriores também não seguiam os pushes (3, 16 e 17 dias de idade), então não há integração Git ativa. Para acompanhar: `vercel list sopromoboa`.
 
 ### MercaGym (frontend, API e worker)
 - Tudo roda em Docker na VPS (`mercagym-api`, `mercagym-worker-1`, `mercagym-frontend`) em `/opt/mercagym`.
@@ -55,7 +56,7 @@ Antes de "corrigir" algo no código por causa do Search Console, descubra **de q
 - Maior parte dos não indexados é "Detectada, mas não indexada": 2.893 (MercaGym) e 5.692 (QuePromo). Não tem correção direta. Caminho: enxugar o sitemap e reforçar links internos.
 - Sitemaps: MercaGym ~6.372 URLs, QuePromo ~28.479 URLs.
 - Validações iniciadas em 12/11/2026: QuePromo 5xx (8) e 404 (102); MercaGym 404 (6) e soft 404 (11). Rever o relatório depois de alguns dias a duas semanas.
-- QuePromo: `busca-personalizada` ganhou `noindex, follow` no commit `0ea8bb5`. **Pendente de publicar no frontend (Vercel).**
+- QuePromo: `busca-personalizada` ganhou `noindex, follow` no commit `0ea8bb5`. **No ar desde 12/11/2026** (deploy `sopromoboa-gmq4m2lo9`, verificado com `curl`).
 - MercaGym: já serve `noindex, follow` no `/?q=`. Essa correção vem do repositório dele, não do `sopromoboa`.
 
 ## Checklist antes de agir
