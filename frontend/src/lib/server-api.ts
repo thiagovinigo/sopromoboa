@@ -1,6 +1,9 @@
 import type { CategoryItem, Deal, DealDetail, StoreItem } from "./api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+// No servidor, prefere a rede interna do Docker (sem rate limit nem volta pela internet).
+// Fora dela (Vercel, dev, build) cai na URL pública.
+const API_BASE =
+  process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 const REVALIDATE_SECONDS = 600;
 const REQUEST_TIMEOUT_MS = 8000;

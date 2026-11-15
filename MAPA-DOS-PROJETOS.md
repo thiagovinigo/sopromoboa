@@ -11,7 +11,7 @@ Leia isto antes de mexer em SEO, deploy ou Search Console. **São dois projetos,
 | Pasta local | `C:\Users\User\sopromoboa` | `C:\Users\User\buscafitness` |
 | Repositório | `thiagovinigo/sopromoboa` | `thiagovinigo/mercagym` (privado) |
 | `clickref` Awin | `quepromo` | `mercagym` |
-| Frontend roda em | **Vercel**, projeto `sopromoboa` | **VPS** (Docker, atrás do Traefik) |
+| Frontend roda em | **VPS** (Docker, atrás do Traefik), desde 15/11/2026 | **VPS** (Docker, atrás do Traefik) |
 | Backend roda em | **VPS**, `/opt/sopromoboa` | **VPS**, `/opt/mercagym` |
 | Banco | `backend/sopromoboa.db` (volume na VPS) | `/data/mercagym.db` (volume na VPS) |
 
@@ -26,12 +26,14 @@ O nome "sopromoboa" é o começo do QuePromo. A fase 1 do rename (marca, `utm_so
 2. O script roda `pytest`, empacota `backend/` (sem `venv`, `.env` nem `*.db`), envia por `scp` e reinicia os containers `api` e `worker` na VPS com `backend/docker-compose.vps.yml` e `.env.vps`.
 3. Não envia banco, então não sobrescreve produção.
 
-### QuePromo: frontend (Next.js)
-- Está ligado ao projeto Vercel `sopromoboa` (`frontend/.vercel/project.json`: `projectId prj_cUzFpXzaFkbeveVyHKiMfnbD3ETQ`, `orgId team_nlQFHL0mqQiI3wpTq8XyC3Fg`). A pasta `.vercel` é ignorada pelo git.
-- **`git push` não publica o frontend** (verificado em 12/11/2026: o commit `0ea8bb5` estava na `main` e o site seguia com o comportamento antigo).
-- **Como publicar (confirmado em 12/11/2026):** `cd frontend; vercel --prod --yes`. A CLI já está autenticada (conta `thiagovinigo-3734`), faz o build e aponta o alias `quepromo.com.br`. Sempre pedir "sim" ao dono antes, é produção. Depois, confirmar com `curl`.
-- O conector da Vercel do Claude devolve 403 ao listar os deploys deste projeto e só enxerga o projeto `nutri`. Para acompanhar o deploy, use a CLI (`vercel --scope <time> list sopromoboa`) ou o painel.
-- Os deploys anteriores também não seguiam os pushes (3, 16 e 17 dias de idade), então não há integração Git ativa. Para acompanhar: `vercel list sopromoboa`.
+### QuePromo: frontend (Next.js) — na VPS desde 15/11/2026
+- **A Vercel não é mais usada.** Em 15/11/2026 o projeto `sopromoboa` passou a responder `402 DEPLOYMENT_DISABLED` (conta/time bloqueado) e o site ficou fora do ar. O frontend foi migrado para a VPS. Não republicar na Vercel.
+- Roda em `/opt/quepromo-frontend` (container `quepromo-frontend`, `frontend/docker-compose.vps.yml`, imagem `quepromo-frontend:latest`). O Traefik atende `quepromo.com.br` (certificado próprio) e `www.quepromo.com.br` (301 para o apex, certificado próprio). Certificados separados de propósito: se um host não resolve, não bloqueia o outro.
+- No servidor o frontend fala com a API pela rede interna (`INTERNAL_API_URL=http://sopromoboa-api-1:8000`); no navegador usa `NEXT_PUBLIC_API_URL=https://api.quepromo.com.br` (embutida no build, ver `frontend/Dockerfile`).
+- **DNS (Registro.br):** `quepromo.com.br` A `191.252.191.189`; `www` CNAME `quepromo.com.br`; `api` A `191.252.191.189`. O painel recusa (HTTP 400) trocar um registro por outro na mesma gravação: remover e adicionar em gravações separadas.
+- **Como publicar:** (1) `tar` de `frontend/` (sem `node_modules`, `.next`, `.vercel`) para `/opt/quepromo-frontend`; (2) rodar `./build.sh` lá (para o `sopromoboa-worker-1` durante o build, usa `DOCKER_BUILDKIT=0` com `--memory=650m` e heap de 420 MB, e religa o worker no fim); (3) `docker compose -f docker-compose.vps.yml up -d --no-build`; (4) **aquecer o sitemap** com `curl https://quepromo.com.br/sitemap.xml` (a primeira geração a frio leva 1 a 2 min com a VPS carregada; depois fica em ~0,6 s).
+- **Não dá para construir a imagem no PC do dono:** o Norton Web/Mail Shield intercepta o HTTPS do Docker e o `npm ci` falha com `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. Construir na VPS.
+- A VPS tem ~2 GB, com pouca folga (≈470 MB livres e swap alto). Upgrade adiado pelo dono por 2 a 3 semanas (decisão de 15/11/2026).
 
 ### MercaGym (frontend, API e worker)
 - Tudo roda em Docker na VPS (`mercagym-api`, `mercagym-worker-1`, `mercagym-frontend`) em `/opt/mercagym`.
@@ -61,7 +63,7 @@ Antes de "corrigir" algo no código por causa do Search Console, descubra **de q
 
 ## Checklist antes de agir
 1. Qual site? Qual repositório? (tabela acima)
-2. Onde esse código roda? (Vercel, VPS/Docker)
+2. Onde esse código roda? (VPS/Docker; a Vercel não é mais usada)
 3. Como publica e o que isso arrisca? (banco, memória da VPS, segredos)
 4. Depois de publicar, confirmar **no ar**, não só no commit:
    ```bash

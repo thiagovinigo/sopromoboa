@@ -1,0 +1,35 @@
+networks:
+  web:
+    external: true
+    name: evolution-stack_web
+
+services:
+  frontend:
+    container_name: quepromo-frontend
+    image: quepromo-frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - INTERNAL_API_URL=http://sopromoboa-api-1:8000
+    mem_limit: 300m
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      # Certificado separado por host: se o DNS do www atrasar, ele não impede o do apex.
+      - "traefik.http.routers.quepromo-frontend.rule=Host(`quepromo.com.br`)"
+      - "traefik.http.routers.quepromo-frontend.entrypoints=websecure"
+      - "traefik.http.routers.quepromo-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.quepromo-frontend.loadbalancer.server.port=3000"
+      # www redireciona (301) para o apex, com certificado próprio.
+      - "traefik.http.routers.quepromo-www.rule=Host(`www.quepromo.com.br`)"
+      - "traefik.http.routers.quepromo-www.entrypoints=websecure"
+      - "traefik.http.routers.quepromo-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.quepromo-www.middlewares=quepromo-www-redirect"
+      - "traefik.http.routers.quepromo-www.service=quepromo-frontend"
+      - "traefik.http.middlewares.quepromo-www-redirect.redirectregex.regex=^https://www\\.quepromo\\.com\\.br/(.*)"
+      - "traefik.http.middlewares.quepromo-www-redirect.redirectregex.replacement=https://quepromo.com.br/$${1}"
+      - "traefik.http.middlewares.quepromo-www-redirect.redirectregex.permanent=true"
