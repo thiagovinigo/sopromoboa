@@ -52,11 +52,11 @@ AWIN_STORES = {
     "asics": _store("23659", "asics.com.br", "ASICS Brasil", "pending", _BOTH),
     "authenticfeet": _store("28775", "authenticfeet.com.br", "Authentic Feet", "pending", _BOTH),
     "technos": _store("28161", "technos.com.br", "Technos", "pending", _BOTH),
-    "puma": _store("32675", "puma.com", "PUMA Brasil", "pending", _GYM),
+    "puma": _store("32675", "puma.com", "PUMA Brasil", "approved", _GYM),  # aprovada; a Awin não oferece feed
     # Recusada em 10/11/2026 ("URL inativo, página não encontrada"); a Awin só permite recandidatar a partir de 11/12/2026.
     "underarmour": _store("18864", "underarmour.com.br", "Under Armour Brasil", "rejected", _GYM),
-    "mizuno": _store("51271", "mizuno.com.br", "Mizuno Brasil", "pending", _GYM),
-    "olympikus": _store("17698", "olympikus.com.br", "Olympikus", "pending", _GYM),
+    "mizuno": _store("51271", "mizuno.com.br", "Mizuno Brasil", "approved", _GYM),
+    "olympikus": _store("17698", "olympikus.com.br", "Olympikus", "approved", _GYM),
     "dafiti": _store("17697", "dafiti.com.br", "Dafiti", "approved", _GYM),
     "pacco": _store("130751", "pacco.com.br", "PACCO", "pending", _GYM),
     "swissmove": _store("125142", "swissmove.com.br", "Swiss Move", "pending", _GYM),
