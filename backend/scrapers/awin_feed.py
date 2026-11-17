@@ -29,6 +29,7 @@ GZIP_MAGIC = b"\x1f\x8b"
 DOWNLOAD_TIMEOUT_SECONDS = (15, 180)
 READ_ATTEMPTS = 3
 RETRY_WAIT_SECONDS = 20.0
+TITLE_CATEGORY_STORES = {"polishop"}  # varejo geral (casa, saúde, eletro): a categoria sai do título
 MIN_PRICE = 5.0
 MAX_PRICE = 20_000.0
 MAX_ITEMS = int(os.getenv("AWIN_FEED_MAX_ITEMS", "10000"))
@@ -117,7 +118,8 @@ def build_raw_listing(row: Dict[str, str]) -> Optional[Dict[str, Any]]:
     return {
         "id": f"{ID_PREFIX}{store_slug}_{_page_key(url)}",
         "title": title,
-        "category": CATEGORY,  # lojas de marca esportiva: o título não decide (evita tênis em "periféricos")
+        # lojas de marca esportiva: o título não decide (evita tênis em "periféricos"); varejo geral: o título decide
+        "category": None if store_slug in TITLE_CATEGORY_STORES else CATEGORY,
         "brand": (row.get("brand_name") or "").strip() or store["name"],
         "price": price,
         "list_price": list_price if list_price and list_price > price else None,
@@ -165,3 +167,7 @@ def scrape_awin_nike() -> List[Dict[str, Any]]:
 
 def scrape_awin_adidas() -> List[Dict[str, Any]]:
     return read_store_listings("adidas")
+
+
+def scrape_awin_polishop() -> List[Dict[str, Any]]:
+    return read_store_listings("polishop")

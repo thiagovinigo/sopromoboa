@@ -130,3 +130,15 @@ def test_both_stores_are_approved_for_quepromo(slug):
     from affiliate import awin_is_approved, awin_stores_for_site
 
     assert awin_is_approved(slug) and slug in awin_stores_for_site("quepromo")
+
+
+def test_polishop_usa_categoria_do_titulo(monkeypatch):
+    from scrapers import awin_feed as af
+    row = {
+        "aw_product_id": "9", "product_name": "Aspirador Robo Polishop", "merchant_deep_link": "https://www.polishop.com.br/p/aspirador",
+        "merchant_image_url": "https://img.polishop.com.br/a.jpg", "search_price": "399.90", "product_price_old": "599.90",
+        "stock_status": "in stock", "brand_name": "Polishop",
+    }
+    listing = af.build_raw_listing(row)
+    assert listing["id"].startswith("awinpolishop_")
+    assert listing["category"] is None and listing["source"] == "Polishop"

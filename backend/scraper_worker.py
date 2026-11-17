@@ -44,10 +44,11 @@ RETIRING_SCRAPERS = {
     "Mercadolivre": MERCADOLIVRE_ID_PREFIX,
     "Awin Nike": "awinnike_",
     "Awin Adidas": "awinadidas_",
+    "Awin Polishop": "awinpolishop_",
 }
 # Itens desses scrapers chegam sem histórico de preço: não ganham "menor preço" no primeiro registro.
 NO_HISTORY_PREFIXES = (LOMADEE_ID_PREFIX, SHOPEE_FEED_ID_PREFIX, GATRY_ID_PREFIX, MERCADOLIVRE_ID_PREFIX,
-                       "awinnike_", "awinadidas_")
+                       "awinnike_", "awinadidas_", "awinpolishop_")
 # Varredura quase vazia = provável falha parcial da fonte: não retira o catálogo inteiro por causa dela.
 MIN_ITEMS_TO_RETIRE = 20
 

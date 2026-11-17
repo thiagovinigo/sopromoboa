@@ -60,6 +60,7 @@ AWIN_STORES = {
     "dafiti": _store("17697", "dafiti.com.br", "Dafiti", "approved", _GYM),
     "pacco": _store("130751", "pacco.com.br", "PACCO", "pending", _GYM),
     "swissmove": _store("125142", "swissmove.com.br", "Swiss Move", "pending", _GYM),
+    "polishop": _store("26113", "polishop.com.br", "Polishop", "approved", (SITE_QUEPROMO,)),
     "electrolux": _store("16578", "electrolux.com.br", "Electrolux", "not_requested", (SITE_QUEPROMO,), verified=False),
 }
 
